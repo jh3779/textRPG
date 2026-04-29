@@ -1,0 +1,9 @@
+# 퀘스트 정보 파일
+# 형식: ID | 제목 | 설명 | 타입 | 목표 개수 | 경험치 | 골드
+#
+# 타입: KILL_ENEMY | COLLECT_ITEM | EXPLORE | REACH_GOAL
+#
+# ?? 예시:
+# quest001 | 고블린 사냥 | 고블린 3마리를 사냥하라 | KILL_ENEMY | 3 | 100 | 50
+# quest002 | 보물 찾기 | 던전에서 보물을 찾아라 | COLLECT_ITEM | 1 | 200 | 100
+# quest003 | 던전 탈출 | 던전의 보스를 처치하고 탈출하라 | REACH_GOAL | 1 | 500 | 300
