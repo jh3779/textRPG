@@ -1,40 +1,66 @@
-/*
- * Map.cpp
- *
- * 📚 학습 개념:
- * - 배열 초기화: 여러 struct 값을 한번에 설정
- * - 배열 인덱싱: locations[i]로 각 지역 접근
- *
- * 💡 팁:
- * - 생성자에서 locations[0], locations[1] 등을 초기화
- * - currentLocationIndex는 0부터 시작 (첫 지역)
- * - 각 지역에 고유한 이름, 설명, 적 유무 설정
- */
-
 #include "../include/Map.h"
 
- // 💡 생성자 구현 예시:
- // Map::Map() {
- //     // 0번 지역: 던전 입구
- //     locations[0] = {"던전 입구", "어두운 던전의 입구에 서있다.", false, false};
- //     
- //     // 1번 지역: 첫 번째 방
- //     locations[1] = {"첫 번째 방", "손가락만한 귀뚜라미들이 우글거린다.", true, false};
- //     
- //     // ... 나머지 지역들 설정 ...
- //     
- //     currentLocationIndex = 0;
- //     totalLocations = 10;  // 총 10개 지역
- // }
+Map::Map()
+    : currentLocationIndex(0),
+      totalLocations(5) {
+    locations[0] = {"던전 입구", "차가운 바람이 새어 나오는 던전 입구에 서 있습니다.", false, false};
+    locations[1] = {"갈림길", "왼쪽은 희미한 빛, 오른쪽은 낮은 울음소리가 들립니다.", false, false};
+    locations[2] = {"낡은 무기고", "먼지 쌓인 상자 사이에서 쓸 만한 장비를 찾을 수 있을 것 같습니다.", false, false};
+    locations[3] = {"어두운 통로", "고블린의 발자국이 바닥에 남아 있습니다.", true, false};
+    locations[4] = {"보스의 방", "던전의 주인이 이곳을 지키고 있습니다.", true, true};
+}
 
- // 💡 moveToLocation() 함수 구현 예시:
- // void Map::moveToLocation(int locationIndex) {
- //     if (locationIndex >= 0 && locationIndex < totalLocations) {
- //         currentLocationIndex = locationIndex;
- //         displayCurrentLocation();
- //     } else {
- //         std::cout << "이동할 수 없습니다!" << std::endl;
- //     }
- // }
+Location Map::getCurrentLocation() const {
+    return locations[currentLocationIndex];
+}
 
- // 👇 여기에 나머지 함수들의 구현 코드를 작성하세요
+std::string Map::getCurrentLocationName() const {
+    return locations[currentLocationIndex].name;
+}
+
+void Map::displayCurrentLocation() const {
+    const Location& location = locations[currentLocationIndex];
+    std::cout << "\n[" << location.name << "]\n"
+              << location.description << "\n";
+}
+
+void Map::moveToLocation(int locationIndex) {
+    if (locationIndex < 0 || locationIndex >= totalLocations) {
+        std::cout << "그곳으로는 이동할 수 없습니다.\n";
+        return;
+    }
+
+    currentLocationIndex = locationIndex;
+}
+
+bool Map::hasEnemyInCurrentLocation() const {
+    return locations[currentLocationIndex].hasEnemy;
+}
+
+void Map::moveNext() {
+    if (currentLocationIndex + 1 < totalLocations) {
+        currentLocationIndex++;
+    } else {
+        std::cout << "더 이상 앞으로 갈 수 없습니다.\n";
+    }
+}
+
+void Map::movePrevious() {
+    if (currentLocationIndex > 0) {
+        currentLocationIndex--;
+    } else {
+        std::cout << "던전 밖으로 나왔습니다.\n";
+    }
+}
+
+void Map::displayMap() const {
+    std::cout << "\n[지도]\n";
+    for (int i = 0; i < totalLocations; ++i) {
+        std::cout << (i == currentLocationIndex ? "> " : "  ")
+                  << i + 1 << ". " << locations[i].name << "\n";
+    }
+}
+
+int Map::getCurrentLocationIndex() const {
+    return currentLocationIndex;
+}

@@ -1,125 +1,101 @@
-# 🧙 Console Text RPG (C++)
+# Console Text RPG (C++)
 
-간단한 텍스트 기반 RPG 게임입니다.
-플레이어는 선택지(1, 2, 3)를 통해 스토리를 진행하며, 전투와 이벤트를 경험합니다.
+간단한 텍스트 기반 콘솔 RPG입니다. 플레이어는 숫자 선택지를 통해 던전을 탐험하고, 전투와 이벤트를 거쳐 엔딩에 도달합니다.
 
----
-
-## 🎮 게임 소개
-
-이 프로젝트는 C++ 기초 문법을 활용하여 만든 콘솔 RPG입니다.
-복잡한 그래픽 없이 **텍스트와 선택지 기반**으로 게임이 진행됩니다.
-
-### 주요 요소
+## 주요 기능
 
 * 선택지 기반 스토리 진행
-* 간단한 전투 시스템
-* 플레이어 스탯 (체력, 공격력)
-* 게임 오버 / 엔딩 시스템
+* 1~3번 숫자 입력 검증
+* 플레이어 스탯: HP, 공격력, 방어력, 레벨, 경험치, 골드
+* 턴제 전투: 공격 또는 도망
+* 짧은 던전 맵, 인벤토리, 퀘스트 보상
+* 안전 지점 저장 및 이어하기
+* 게임 오버 및 던전 클리어 엔딩
 
----
+## 실행 방법
 
-## 🕹️ 실행 방법
-
-### 1. 컴파일
+### CMake 사용
 
 ```bash
-g++ main.cpp -o game
+cmake -S . -B build
+cmake --build build
+./build/bin/game
 ```
 
-### 2. 실행
+### g++ 직접 빌드
 
 ```bash
+g++ -std=c++17 -Iinclude main.cpp src/Game.cpp src/Player.cpp src/Enemy.cpp src/Item.cpp src/Inventory.cpp src/BattleSystem.cpp src/Map.cpp src/Quest.cpp src/Utils.cpp -o game
 ./game
 ```
 
-※ Windows PowerShell에서는:
+Windows PowerShell에서는 실행 파일 이름을 `game.exe`로 지정할 수 있습니다.
 
 ```powershell
-g++ main.cpp -o game.exe
+g++ -std=c++17 -Iinclude main.cpp src/Game.cpp src/Player.cpp src/Enemy.cpp src/Item.cpp src/Inventory.cpp src/BattleSystem.cpp src/Map.cpp src/Quest.cpp src/Utils.cpp -o game.exe
 ./game.exe
 ```
 
----
+### Java GUI 버전
 
-## 🎯 게임 진행 방식
+상황 이미지, 상태 패널, 선택 버튼이 있는 GUI 버전도 실행할 수 있습니다.
 
-1. 스토리가 출력됩니다
-2. 선택지(숫자)를 입력합니다
-3. 선택에 따라 다음 상황이 결정됩니다
-4. 체력이 0이 되면 게임 오버
-
----
-
-## ⚔️ 전투 시스템
-
-* 턴제 방식
-* 선택지:
-
-  1. 공격
-  2. 도망
-
-공격 시:
-
-* 플레이어 → 적 공격
-* 적 → 플레이어 반격
-
----
-
-## 🧱 프로젝트 구조
-
-```
-text-rpg/
- ├── main.cpp
- └── README.md
+```bash
+javac java/TextRPGGui.java
+java -cp java TextRPGGui
 ```
 
----
+## 게임 진행 방식
 
-## 🧩 설계 개요
+1. 메인 메뉴에서 게임을 시작합니다.
+2. 저장 파일이 있으면 `이어하기`로 이전 위치에서 재개할 수 있습니다.
+3. 현재 위치 설명과 선택지가 출력됩니다.
+4. 숫자를 입력해 이동, 상태 확인, 전투 행동을 선택합니다.
+5. 전투에서는 공격하거나 도망칠 수 있습니다.
+6. HP가 0이 되면 게임 오버, 보스를 처치하면 던전 클리어입니다.
 
-### 플레이어 구조체
+## 저장 방식
 
-* 체력 (HP)
-* 공격력 (ATK)
+게임 중 안전 지점에서 `저장하고 종료`를 선택하면 `saves/save1.txt`에 현재 상태가 저장됩니다. 전투 중에는 저장하지 않고, 위치 선택지에서만 저장할 수 있습니다.
 
-### 적 구조체
+## 프로젝트 구조
 
-* 체력
-* 공격력
+```text
+textRPG/
+├── main.cpp
+├── CMakeLists.txt
+├── include/
+│   ├── BattleSystem.h
+│   ├── Enemy.h
+│   ├── Game.h
+│   ├── Inventory.h
+│   ├── Item.h
+│   ├── Map.h
+│   ├── Player.h
+│   ├── Quest.h
+│   └── Utils.h
+├── src/
+│   ├── BattleSystem.cpp
+│   ├── Enemy.cpp
+│   ├── Game.cpp
+│   ├── Inventory.cpp
+│   ├── Item.cpp
+│   ├── Map.cpp
+│   ├── Player.cpp
+│   ├── Quest.cpp
+│   └── Utils.cpp
+├── data/
+│   ├── enemies.txt
+│   ├── items.txt
+│   └── quests.txt
+├── PRD.md
+└── system_design.md
+```
 
-### 주요 함수
+## 학습 포인트
 
-* 게임 시작
-* 선택지 처리
-* 전투 처리
-* 게임 종료
-
----
-
-## 🚧 개발 목적
-
-이 프로젝트는 다음을 학습하기 위해 제작되었습니다:
-
-* 조건문 (if / switch)
-* 반복문 (while)
-* 함수 구조화
-* 상태 관리
-* 기본적인 게임 로직 설계
-
----
-
-## 🔮 향후 개선 아이디어
-
-* 아이템 시스템
-* 랜덤 이벤트
-* 다양한 적 추가
-* 저장 / 불러오기 기능
-* 멀티 엔딩
-
----
-
-## 📌 참고
-
-이 프로젝트는 학습용으로 제작된 간단한 게임입니다.
-복잡한 구조보다는 **이해하기 쉬운 코드**를 목표로 합니다.
+* 조건문과 반복문을 이용한 선택지 처리
+* 클래스와 객체를 이용한 상태 관리
+* 헤더와 소스 파일 분리
+* 참조와 포인터를 이용한 객체 간 상호작용
+* 간단한 게임 루프와 전투 결과 처리

@@ -19,6 +19,7 @@
 #include "BattleSystem.h"
 #include "Quest.h"
 #include "Inventory.h"
+#include <string>
 #include <vector>
 
  // 💡 enum: 게임 상태
@@ -42,6 +43,8 @@ private:
     GameState currentState;     // 현재 게임 상태
     bool isRunning;             // 게임 실행 중 여부
     int gameRound;              // 현재 게임 라운드
+    bool armoryLooted;          // 무기고 보상 획득 여부
+    bool goblinDefeated;        // 고블린 처치 여부
 
 public:
     // 💡 생성자: 게임 초기화
@@ -69,6 +72,11 @@ public:
 
     // 💡 현재 위치에서 이벤트 처리
     void handleLocationEvent();
+
+    // 💡 저장/불러오기
+    bool saveGame(const std::string& filename) const;
+    bool loadGame(const std::string& filename);
+    void saveAndQuit();
 
     // 💡 게임 오버 처리
     void handleGameOver();

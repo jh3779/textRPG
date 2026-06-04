@@ -38,6 +38,7 @@
 *.exe
 *.out
 *.app
+game
 
 # Build directories
 build/
@@ -67,3 +68,10 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Local agent state
+.claude/
+
+# Java GUI build output and local saves
+*.class
+saves/

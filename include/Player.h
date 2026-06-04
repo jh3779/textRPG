@@ -49,6 +49,8 @@ public:
     // 💡 Setter 함수: private 멤버 변수의 값을 변경
     void setHp(int newHp);
     void setAttack(int newAttack);
+    void loadState(int savedHp, int savedMaxHp, int savedAttack, int savedDefense,
+                   int savedLevel, int savedExperience, int savedGold);
     void addExperience(int exp);
     void addGold(int amount);
 

@@ -1,41 +1,52 @@
-/*
- * Item.cpp
- *
- * 📚 학습 개념:
- * - enum 값 사용: ItemType::WEAPON처럼 접근
- * - switch 문: 여러 경우를 나누어 처리
- *
- * 💡 팁:
- * - getTypeAsString() 함수에서는 enum을 문자열로 변환
- * - switch 문 예시:
- *   switch(type) {
- *       case ItemType::WEAPON: return "무기";
- *       case ItemType::ARMOR: return "방어구";
- *       ...
- *   }
- */
-
 #include "../include/Item.h"
 
- // 💡 생성자 구현 예시:
- // Item::Item(const std::string& itemName, ItemType itemType, int itemValue, 
- //            int itemPrice, const std::string& desc) {
- //     name = itemName;
- //     type = itemType;
- //     value = itemValue;
- //     price = itemPrice;
- //     description = desc;
- // }
+Item::Item(const std::string& itemName, ItemType itemType, int itemValue,
+           int itemPrice, const std::string& desc)
+    : name(itemName),
+      type(itemType),
+      value(itemValue),
+      price(itemPrice),
+      description(desc) {
+}
 
- // 💡 getTypeAsString() 함수 구현 예시:
- // std::string Item::getTypeAsString() const {
- //     switch(type) {
- //         case ItemType::WEAPON:
- //             return "무기";
- //         case ItemType::ARMOR:
- //             return "방어구";
- //         ...
- //     }
- // }
+std::string Item::getName() const {
+    return name;
+}
 
- // 👇 여기에 나머지 함수들의 구현 코드를 작성하세요
+ItemType Item::getType() const {
+    return type;
+}
+
+int Item::getValue() const {
+    return value;
+}
+
+int Item::getPrice() const {
+    return price;
+}
+
+std::string Item::getDescription() const {
+    return description;
+}
+
+void Item::displayInfo() const {
+    std::cout << name << " [" << getTypeAsString() << "] "
+              << "효과: " << value
+              << " | 가격: " << price
+              << " | " << description << "\n";
+}
+
+std::string Item::getTypeAsString() const {
+    switch (type) {
+        case ItemType::WEAPON:
+            return "무기";
+        case ItemType::ARMOR:
+            return "방어구";
+        case ItemType::POTION:
+            return "포션";
+        case ItemType::CONSUMABLE:
+            return "소비 아이템";
+        default:
+            return "알 수 없음";
+    }
+}

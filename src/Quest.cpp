@@ -1,43 +1,96 @@
-/*
- * Quest.cpp
- *
- * 📚 학습 개념:
- * - enum 값 사용 및 비교
- * - 진행 상황 추적: currentCount와 targetCount
- * - 조건 검사: isCompleted()에서 진행도 확인
- *
- * 💡 팁:
- * - status는 NOT_STARTED로 시작
- * - updateProgress(1) 호출 시마다 currentCount 증가
- * - currentCount >= targetCount일 때 완료 판정
- */
-
 #include "../include/Quest.h"
 
- // 💡 생성자 구현 예시:
- // Quest::Quest(const std::string& id, const std::string& title, 
- //              const std::string& desc, QuestType questType,
- //              int target, int exp, int gold) {
- //     questId = id;
- //     this->title = title;
- //     description = desc;
- //     type = questType;
- //     targetCount = target;
- //     currentCount = 0;
- //     rewardExp = exp;
- //     rewardGold = gold;
- //     status = QuestStatus::NOT_STARTED;
- // }
+#include <algorithm>
 
- // 💡 updateProgress() 함수 구현 예시:
- // void Quest::updateProgress(int amount) {
- //     if (status == QuestStatus::IN_PROGRESS) {
- //         currentCount += amount;
- //         if (currentCount >= targetCount) {
- //             status = QuestStatus::COMPLETED;
- //             std::cout << "🎉 퀘스트 '" << title << "'를 완료했습니다!" << std::endl;
- //         }
- //     }
- // }
+Quest::Quest(const std::string& id, const std::string& title,
+             const std::string& desc, QuestType questType,
+             int target, int exp, int gold)
+    : questId(id),
+      title(title),
+      description(desc),
+      type(questType),
+      status(QuestStatus::NOT_STARTED),
+      targetCount(std::max(1, target)),
+      currentCount(0),
+      rewardExp(exp),
+      rewardGold(gold) {
+}
 
- // 👇 여기에 나머지 함수들의 구현 코드를 작성하세요
+std::string Quest::getTitle() const {
+    return title;
+}
+
+std::string Quest::getDescription() const {
+    return description;
+}
+
+QuestStatus Quest::getStatus() const {
+    return status;
+}
+
+int Quest::getTargetCount() const {
+    return targetCount;
+}
+
+int Quest::getCurrentCount() const {
+    return currentCount;
+}
+
+int Quest::getRewardExp() const {
+    return rewardExp;
+}
+
+int Quest::getRewardGold() const {
+    return rewardGold;
+}
+
+void Quest::startQuest() {
+    if (status == QuestStatus::NOT_STARTED) {
+        status = QuestStatus::IN_PROGRESS;
+    }
+}
+
+void Quest::updateProgress(int amount) {
+    if (status != QuestStatus::IN_PROGRESS || amount <= 0) {
+        return;
+    }
+
+    currentCount = std::min(targetCount, currentCount + amount);
+    if (currentCount >= targetCount) {
+        status = QuestStatus::COMPLETED;
+        std::cout << "\n퀘스트 완료: " << title << "\n";
+    }
+}
+
+void Quest::displayProgress() const {
+    std::cout << currentCount << "/" << targetCount;
+}
+
+bool Quest::isCompleted() const {
+    return status == QuestStatus::COMPLETED || status == QuestStatus::REWARDED;
+}
+
+void Quest::displayQuestInfo() const {
+    std::cout << title << " [" << getStatusAsString() << "]\n"
+              << description << "\n"
+              << "진행도: ";
+    displayProgress();
+    std::cout << " | 보상: 경험치 " << rewardExp << ", 골드 " << rewardGold << "\n";
+}
+
+std::string Quest::getStatusAsString() const {
+    switch (status) {
+        case QuestStatus::NOT_STARTED:
+            return "시작 전";
+        case QuestStatus::IN_PROGRESS:
+            return "진행 중";
+        case QuestStatus::COMPLETED:
+            return "완료";
+        case QuestStatus::FAILED:
+            return "실패";
+        case QuestStatus::REWARDED:
+            return "보상 수령";
+        default:
+            return "알 수 없음";
+    }
+}
