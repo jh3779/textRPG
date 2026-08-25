@@ -16,6 +16,8 @@
 #include <string>
 #include <iostream>
 
+#include "AiNarrator.h"
+
  // 💡 struct: 데이터를 묶는 방법 (기본적으로 public)
  // 간단한 데이터 구조에는 struct 사용
 struct Location {
@@ -44,7 +46,8 @@ public:
     std::string getCurrentLocationName() const;
 
     // 💡 현재 위치 설명 표시
-    void displayCurrentLocation() const;
+    // narrator가 주어지고 AI 서술 모드가 켜져 있으면 매번 다른 서술을 받아온다.
+    void displayCurrentLocation(AiNarrator* narrator = nullptr) const;
 
     // 💡 특정 위치로 이동
     void moveToLocation(int locationIndex);

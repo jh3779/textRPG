@@ -75,3 +75,9 @@ Testing/
 # Java GUI build output and local saves
 *.class
 saves/
+
+# AI Dungeon Master sidecar (ai_service/) — Python env & secrets
+ai_service/.venv/
+ai_service/.env
+ai_service/__pycache__/
+ai_service/**/__pycache__/

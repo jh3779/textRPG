@@ -15,6 +15,7 @@
 
 #include "Player.h"
 #include "Enemy.h"
+#include "AiNarrator.h"
 
  // 💡 enum: 전투 결과의 종류
 enum class BattleResult {
@@ -38,7 +39,8 @@ public:
 
     // 💡 전투 시작 (반복해서 라운드 진행)
     // 참조(&): 원본 객체를 직접 수정할 수 있음
-    BattleResult startBattle();
+    // narrator가 주어지고 AI 서술 모드가 켜져 있으면 전투 시작 문구를 매번 다르게 받아온다.
+    BattleResult startBattle(AiNarrator* narrator = nullptr);
 
     // 💡 한 라운드 진행
     void executeTurn(int playerAction);

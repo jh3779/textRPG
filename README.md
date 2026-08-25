@@ -11,6 +11,7 @@
 * 짧은 던전 맵, 인벤토리, 퀘스트 보상
 * 안전 지점 저장 및 이어하기
 * 게임 오버 및 던전 클리어 엔딩
+* (선택) AI 던전마스터: 위치/전투/승패 서술을 로컬 AI 서비스로 매번 다르게 생성
 
 ## 실행 방법
 
@@ -22,17 +23,25 @@ cmake --build build
 ./build/bin/game
 ```
 
+CMake 최초 실행 시 AI 던전마스터 기능에 필요한 헤더 전용 라이브러리(cpp-httplib, nlohmann/json)를 `FetchContent`로 내려받으므로 인터넷 연결이 필요합니다(이후에는 캐시됨). 이 라이브러리들은 게임을 오프라인으로 빌드/실행하는 데는 영향이 없으며, AI 서술 모드를 켜지 않는 한 사용되지 않습니다.
+
 ### g++ 직접 빌드
 
+`AiNarrator.cpp`가 cpp-httplib / nlohmann-json 헤더를 필요로 하므로, 먼저 `cmake -S . -B build`를 한 번 실행해 `build/_deps/`에 헤더를 받아둔 뒤 아래처럼 빌드하세요.
+
 ```bash
-g++ -std=c++17 -Iinclude main.cpp src/Game.cpp src/Player.cpp src/Enemy.cpp src/Item.cpp src/Inventory.cpp src/BattleSystem.cpp src/Map.cpp src/Quest.cpp src/Utils.cpp -o game
+g++ -std=c++17 -Iinclude \
+  -Ibuild/_deps/httplib-src -Ibuild/_deps/nlohmann_json-src/include \
+  main.cpp src/Game.cpp src/Player.cpp src/Enemy.cpp src/Item.cpp src/Inventory.cpp \
+  src/BattleSystem.cpp src/Map.cpp src/Quest.cpp src/Utils.cpp src/AiNarrator.cpp \
+  -o game
 ./game
 ```
 
 Windows PowerShell에서는 실행 파일 이름을 `game.exe`로 지정할 수 있습니다.
 
 ```powershell
-g++ -std=c++17 -Iinclude main.cpp src/Game.cpp src/Player.cpp src/Enemy.cpp src/Item.cpp src/Inventory.cpp src/BattleSystem.cpp src/Map.cpp src/Quest.cpp src/Utils.cpp -o game.exe
+g++ -std=c++17 -Iinclude -Ibuild/_deps/httplib-src -Ibuild/_deps/nlohmann_json-src/include main.cpp src/Game.cpp src/Player.cpp src/Enemy.cpp src/Item.cpp src/Inventory.cpp src/BattleSystem.cpp src/Map.cpp src/Quest.cpp src/Utils.cpp src/AiNarrator.cpp -o game.exe
 ./game.exe
 ```
 
@@ -58,6 +67,20 @@ java -cp java TextRPGGui
 
 게임 중 안전 지점에서 `저장하고 종료`를 선택하면 `saves/save1.txt`에 현재 상태가 저장됩니다. 전투 중에는 저장하지 않고, 위치 선택지에서만 저장할 수 있습니다.
 
+## 선택 기능: AI 던전마스터
+
+위치 설명, 전투 시작, 승리, 패배 서술을 로컬 AI 서비스가 매번 다르게 생성해줍니다. 서비스를 켜지 않아도 게임은 기존 정적 텍스트로 동일하게 동작합니다.
+
+```bash
+cd ai_service
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # OPENAI_API_KEY 입력
+uvicorn app.main:app --port 8000
+```
+
+서비스를 켜둔 상태에서 게임 메인 메뉴의 `AI 서술 모드 켜기/끄기`를 선택하면 연결을 확인한 뒤 적용됩니다. 자세한 내용은 [`ai_service/README.md`](ai_service/README.md) 참고.
+
 ## 프로젝트 구조
 
 ```text
@@ -65,6 +88,7 @@ textRPG/
 ├── main.cpp
 ├── CMakeLists.txt
 ├── include/
+│   ├── AiNarrator.h
 │   ├── BattleSystem.h
 │   ├── Enemy.h
 │   ├── Game.h
@@ -75,6 +99,7 @@ textRPG/
 │   ├── Quest.h
 │   └── Utils.h
 ├── src/
+│   ├── AiNarrator.cpp
 │   ├── BattleSystem.cpp
 │   ├── Enemy.cpp
 │   ├── Game.cpp
@@ -84,6 +109,7 @@ textRPG/
 │   ├── Player.cpp
 │   ├── Quest.cpp
 │   └── Utils.cpp
+├── ai_service/            # 선택 기능: AI 던전마스터 (FastAPI)
 ├── data/
 │   ├── enemies.txt
 │   ├── items.txt

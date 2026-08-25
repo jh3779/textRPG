@@ -79,7 +79,7 @@ void Game::start() {
                   << "============================\n";
 
         displayMenu();
-        int choice = Utils::getValidInput(1, 3);
+        int choice = Utils::getValidInput(1, 4);
 
         if (choice == 1) {
             currentState = GameState::PLAYING;
@@ -95,6 +95,21 @@ void Game::start() {
                 std::cout << "\n저장 파일이 없습니다. 새 게임을 시작하거나 종료하세요.\n";
                 waitForEnter();
             }
+        } else if (choice == 3) {
+            if (aiNarrator.isEnabled()) {
+                aiNarrator.setEnabled(false);
+                std::cout << "\nAI 서술 모드를 껐습니다.\n";
+            } else {
+                std::cout << "\nAI 서술 서비스에 연결 중...\n";
+                if (aiNarrator.checkHealth()) {
+                    aiNarrator.setEnabled(true);
+                    std::cout << "AI 서술 모드를 켰습니다.\n";
+                } else {
+                    std::cout << "AI 서술 서비스에 연결할 수 없습니다. "
+                              << "ai_service/를 먼저 실행한 뒤 다시 시도하세요.\n";
+                }
+            }
+            waitForEnter();
         } else {
             currentState = GameState::QUIT;
         }
@@ -132,14 +147,15 @@ void Game::update() {
     gameRound++;
     Utils::clearScreen();
     displayGameStatus();
-    gameMap->displayCurrentLocation();
+    gameMap->displayCurrentLocation(&aiNarrator);
     handleLocationEvent();
 }
 
 void Game::displayMenu() const {
     std::cout << "\n1. 새 게임\n"
               << "2. 이어하기\n"
-              << "3. 종료\n";
+              << "3. AI 서술 모드 켜기/끄기 (현재: " << (aiNarrator.isEnabled() ? "ON" : "OFF") << ")\n"
+              << "4. 종료\n";
 }
 
 void Game::displayGameStatus() const {
@@ -238,7 +254,7 @@ void Game::handleLocationEvent() {
 
         Enemy goblin("고블린", 30, 7, 1, 60, 25);
         BattleSystem battle(player, &goblin);
-        BattleResult result = battle.startBattle();
+        BattleResult result = battle.startBattle(&aiNarrator);
 
         if (result == BattleResult::PLAYER_LOSE) {
             currentState = GameState::GAME_OVER;
@@ -269,14 +285,21 @@ void Game::handleLocationEvent() {
 
         Enemy guardian("던전 수호자", 55, 10, 3, 120, 70);
         BattleSystem battle(player, &guardian);
-        BattleResult result = battle.startBattle();
+        BattleResult result = battle.startBattle(&aiNarrator);
 
         if (result == BattleResult::PLAYER_WIN) {
             for (Quest& quest : quests) {
                 quest.updateProgress();
             }
 
-            std::cout << "\n던전 클리어!\n";
+            std::string victoryText = "던전 클리어!";
+            if (aiNarrator.isEnabled()) {
+                victoryText = aiNarrator.narrate(
+                    "victory",
+                    "플레이어가 던전 수호자를 물리치고 던전을 클리어함",
+                    victoryText);
+            }
+            std::cout << "\n" << victoryText << "\n";
             if (!quests.empty() && quests.front().isCompleted()) {
                 player->addExperience(quests.front().getRewardExp());
                 player->addGold(quests.front().getRewardGold());
@@ -391,8 +414,14 @@ void Game::saveAndQuit() {
 }
 
 void Game::handleGameOver() {
-    std::cout << "\nGAME OVER\n"
-              << "체력이 0이 되어 모험이 끝났습니다.\n";
+    std::string defeatText = "체력이 0이 되어 모험이 끝났습니다.";
+    if (aiNarrator.isEnabled()) {
+        defeatText = aiNarrator.narrate(
+            "defeat",
+            "플레이어가 라운드 " + std::to_string(gameRound) + "에 체력이 0이 되어 패배함",
+            defeatText);
+    }
+    std::cout << "\nGAME OVER\n" << defeatText << "\n";
     isRunning = false;
 }
 
