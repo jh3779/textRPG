@@ -37,7 +37,7 @@
         <div class="tag">.wood — 나무 테이블. 모든 화면의 본문 배경</div>
       </div>
       <div class="frame">
-        <div class="parchment parchment-orn" style="height:70px"><span class="orn-br">❧</span></div>
+        <div class="parchment parchment-orn" style="height:70px"></div>
         <div class="tag">.parchment — 양피지. 카드·시트·텍스트 패널의 배경</div>
       </div>
       <div class="frame">
@@ -46,7 +46,7 @@
       </div>
     </div>
     <div class="note">셋을 섞어 쓰지 않는다 — "인물"은 항상 금속 프레임, "텍스트/선택/아이템"은 항상 양피지, "화면 바탕"은 항상 나무. 재질이 곧 의미 구분선이다.</div>
-    <div class="note" style="margin-top:4px">2026-09-04: <code>.parchment</code>에 비네트(가장자리 어둡게)·비대칭 모서리 반경(손으로 자른 듯한 느낌)·이중 테두리(<code>::before</code>)를 추가해 텍스처를 더 살림. 큰 패널(<code>.parchment-orn</code> 수식자)에는 모서리 인장(❧)도 얹는다 — 작은 카드(tcard 등)에는 과해서 안 씀. 더 정밀한 "찢어진 종이 가장자리"가 필요하면 실제 낡은 종이 테두리 이미지를 추가로 생성해 <code>border-image</code>로 넣는 방법도 있음(선택 사항).</div>
+    <div class="note" style="margin-top:4px">2026-09-04: <code>.parchment</code>에 비네트(가장자리 어둡게)·비대칭 모서리 반경(손으로 자른 듯한 느낌)·이중 테두리를 추가해 텍스처를 더 살림. 큰 패널(<code>.parchment-orn</code> 수식자)에는 모서리 인장도 얹는다 — 작은 카드(tcard 등)에는 과해서 안 씀. <b>2026-09-07(DEC-120) 개정</b>: 모서리 인장을 유니코드 ❧ 한 글자 대신 인라인 SVG 필리그리(소용돌이 덩굴무늬, <code>--orn-filigree</code>/<code>--orn-filigree-br</code>) 배경으로 교체하고, 비네트를 네 모서리가 개별적으로 그을린 듯 어두워지도록 강화했다. <b>같은 날 수정</b>: 필리그리를 <code>.parchment-orn::after</code> 배경 레이어 2장(좌상단·우하단)으로만 그리도록 정리했다 — 처음에는 <code>::before</code>/<code>::after</code>를 하나씩 썼는데, <code>::before</code>는 <code>.parchment</code>의 기존 이중 테두리가 이미 쓰고 있어 같은 가상요소를 두 규칙이 절대배치로 동시에 건드리면서 테두리가 깨지는 충돌이 있었음(리뷰에서 확인) — 이중 테두리는 원래 방식(<code>::before</code>, inset 사각형) 그대로 두고 필리그리만 옮겨서 겹치지 않게 했다. 더 정밀한 "찢어진 종이 가장자리"가 필요하면 실제 낡은 종이 테두리 이미지를 추가로 생성해 <code>border-image</code>로 넣는 방법도 있음(선택 사항).</div>
   </section>
 
   <section id="c1" class="sec">
