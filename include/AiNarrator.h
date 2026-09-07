@@ -15,9 +15,14 @@
 
 class AiNarrator {
 private:
+    // 💡 연속 실패 횟수가 이 값 이상이면 isDegraded()가 true를 반환한다.
+    // (한 번의 일시적 실패로 "응답 없음" 표시가 깜빡이지 않도록 여유를 둠)
+    static const int kDegradedThreshold = 2;
+
     bool enabled;
     std::string host;
     int port;
+    int consecutiveFailures;
 
 public:
     AiNarrator();
@@ -26,7 +31,11 @@ public:
     void setEnabled(bool on);
     bool isEnabled() const;
 
-    // 💡 서비스 연결 확인 (GET /health). 토글을 켤 때 호출.
+    // 💡 최근 호출이 계속 실패해 사실상 정적 텍스트로만 동작 중인지 여부.
+    // isEnabled()는 true인데 이게 true면, 사용자에게는 켜져 보이지만 실제로는 응답을 못 받는 상태.
+    bool isDegraded() const;
+
+    // 💡 서비스 연결 확인 (GET /health). 토글을 켤 때 호출. 성공 시 실패 카운트를 초기화한다.
     bool checkHealth();
 
     // 💡 서술 요청. 비활성화 상태이거나 실패하면 즉시 fallback 반환 (never throws)

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>textRPG Unity DS · 4 구현 매핑 v0.7</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="topnav">
+  <span class="brand">textRPG Unity DS <span class="mono" style="font-size:11px;font-weight:500">v0.7</span></span>
+  <a href="design-system.html">1 · 원칙 &amp; 파운데이션</a>
+  <a href="components.html">2 · 컴포넌트</a>
+  <a href="patterns.html">3 · 상태 패턴 · 접근성</a>
+  <span class="cur">4 · 구현 매핑</span>
+  <a href="wireframes.html">5 · 화면 · 와이어프레임</a>
+  <span class="spacer"></span>
+  <button data-theme-toggle>◐ 테마</button>
+</nav>
+
+<div class="wrap">
+
+  <header class="pagehead">
+    <div class="t">4 · 구현 매핑 (Unity / C#)</div>
+    <div class="s">정본: <code>../06_open_questions.md</code> (DEC-101~107, OQ-101~104) · 이 페이지는 결정을 내리지 않고 매핑만 정리한다</div>
+    <div class="toc">
+      <a href="#m1">토큰 → Unity 자산</a><a href="#m2">컴포넌트 → 프리팹</a><a href="#m3">화면 → 씬/패널</a><a href="#m4">상태 → C#</a><a href="#m5">저장</a><a href="#conflict">Conflict List</a>
+    </div>
+  </header>
+
+  <section id="m1" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">M-01</span><span class="sec-t">디자인 토큰 → Unity 자산</span><span class="tag">DEC-103</span></div>
+    <div class="note">
+      <code>styles.css</code>의 <code>--ds-*</code> 색·간격 토큰은 Unity <code>ScriptableObject</code> 하나(예: <code>UITheme.asset</code>)로
+      1:1 이식한다 — 코드에 색을 하드코딩하지 않고 이 애셋을 모든 UI 컴포넌트가 참조하게 해서, 나중에 팔레트를 바꿔도
+      애셋 하나만 수정하면 되게 한다. 폰트는 Cinzel(제목)·Pretendard(본문)·Roboto Mono(수치)를 TMP(TextMeshPro) 폰트 애셋으로 등록.
+    </div>
+  </section>
+
+  <section id="m2" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">M-02</span><span class="sec-t">컴포넌트 → 프리팹</span><span class="tag">2 · 컴포넌트 페이지 대응</span></div>
+    <div class="tblwrap"><table>
+      <tr><th>이 문서의 컴포넌트</th><th>Unity 프리팹(안)</th></tr>
+      <tr><td>초상화 프레임 (C-01)</td><td><code>PortraitFrame.prefab</code> — Image(테두리) + Image(초상화) 중첩, size 프리셋(sm/lg)은 Layout Element로</td></tr>
+      <tr><td>HP/경험치 바 (C-02)</td><td><code>StatBar.prefab</code> — Unity <code>Slider</code> 또는 fillAmount Image + TMP 라벨(현재/최대 숫자 오버레이)</td></tr>
+      <tr><td>타로 선택지/아이템 카드 (C-04·C-08, v0.2)</td><td><code>TarotCard.prefab</code> — Button + Image(양피지 스프라이트 9-slice) + 아이콘/일러스트 슬롯 + TMP 라벨. hover lift는 <code>LayoutElement</code> anchoredPosition 트윈(DOTween 등)</td></tr>
+      <tr><td>캐릭터 시트 (C-05, v0.2 — 기존 직업 카드 대체)</td><td><code>CharacterSheet.prefab</code> — 양피지 배경 + 실루엣/일러스트 Image + 스탯 행 3개(TMP), Toggle Group으로 단일 선택</td></tr>
+      <tr><td>보드 타일 맵 (C-06, v0.2 신규)</td><td><code>DungeonBoard.prefab</code> — <code>HorizontalLayoutGroup</code>으로 타일 5개 + 연결선 Image, 현재 위치는 데이터 바인딩된 활성 타일 스타일 전환</td></tr>
+      <tr><td>주사위 배지 (C-07, v0.2 신규)</td><td><code>DiceBadge.prefab</code> — 아이콘 Image 하나, 확률 판정 함수 호출 지점 UI에 조건부 노출</td></tr>
+      <tr><td>재질(나무·양피지, C-00, v0.2 신규)</td><td>Unity <code>Sprite</code>(9-slice) 두 종류로 제작 — 코드로 그리지 않고 텍스처 애셋으로. 이 문서의 CSS 그라디언트는 웹 프리뷰 근사치일 뿐, 실제 아트는 OQ-104 확정 후 교체</td></tr>
+      <tr><td>배경 씬 (C-10, v0.3 신규)</td><td><code>SceneBackdrop.prefab</code> — 지역별 배경 Sprite 하나 + 하단 그라디언트 오버레이 Image. <code>ExplorePanel</code> 상단에 고정 배치, 지역 전환 시 Sprite만 교체(패널 자체는 유지)</td></tr>
+      <tr><td>대립 구도 (C-11, v0.3 신규)</td><td><code>VersusStage.prefab</code> — 좌우 <code>CharacterFigure</code>(플레이어)·<code>EnemyFigure</code>(적) + 중앙 clash 아이콘. <code>BattlePanel</code> 상단에 배치, 기존 <code>PortraitFrame</code>보다 큰 사이즈 프리셋 사용</td></tr>
+    </table></div>
+  </section>
+
+  <section id="m3" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">M-03</span><span class="sec-t">화면 → 씬 / UI 패널</span><span class="tag">02_ui_flow.md SCR-001~008</span></div>
+    <div class="note">단일 씬 + Canvas 하위 패널 전환 방식을 권장(콘솔 버전처럼 상태 하나로 화면을 관리하는 구조와 가장 가까움). 씬을 화면마다 나누는 방식은 로딩 전환이 생겨 REQ-NF-104(전환 1초 이내)와 어긋날 수 있음.</div>
+    <div class="tblwrap"><table>
+      <tr><th>SCR</th><th>Unity 패널(안)</th></tr>
+      <tr><td>SCR-001 타이틀</td><td><code>TitlePanel</code></td></tr>
+      <tr><td>SCR-002 직업 선택</td><td><code>ClassSelectPanel</code></td></tr>
+      <tr><td>SCR-003 탐색</td><td><code>ExplorePanel</code> (+ 인벤토리/퀘스트는 자식 오버레이)</td></tr>
+      <tr><td>SCR-004 전투</td><td><code>BattlePanel</code></td></tr>
+      <tr><td>SCR-007/008 게임오버/승리</td><td><code>ResultPanel</code>(승패 데이터만 다르게 바인딩)</td></tr>
+    </table></div>
+  </section>
+
+  <section id="m4" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">M-04</span><span class="sec-t">상태 머신 → C#</span><span class="tag">05_state_machine.md STATE-101~103</span></div>
+    <div class="note">
+      <code>GameState</code>·<code>BattleResult</code>·<code>QuestStatus</code> enum은 콘솔 C++ 버전의 이름·값을 그대로 C#으로 포팅한다(리스크: 06_open_questions.md — 수동 포팅 시 수치·확률 오차 위험, 회귀 테스트로 완화).
+      C# 쪽 로직 클래스(<code>GameController</code>, <code>BattleController</code> 등)는 View(패널)와 분리해, Unity UI를 나중에 바꾸더라도 로직이 흔들리지 않게 한다.
+    </div>
+  </section>
+
+  <section id="m5" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">M-05</span><span class="sec-t">저장 데이터</span><span class="tag">04_data_model.md</span></div>
+    <div class="note">
+      <code>Application.persistentDataPath/save1.json</code>에 <code>JsonUtility</code>(또는 Newtonsoft.Json)로 직렬화.
+      필드는 콘솔 버전 <code>saves/save1.txt</code>(<code>version=2</code>, architecture-audit 2026-09-04 수정분 포함)와 1:1 대응 + <code>class_id</code> 추가.
+    </div>
+  </section>
+
+  <section id="conflict" class="sec">
+    <div class="sec-h"><span class="sec-num">✕</span><span class="sec-t">Conflict List — 아직 결정되지 않은 것</span><span class="tag">06_open_questions.md</span></div>
+    <div class="tblwrap"><table>
+      <tr><th>ID</th><th>내용</th><th>이 문서에 미치는 영향</th><th>결정 상태</th></tr>
+      <tr><td class="mono">OQ-101</td><td>Unity 정확한 버전, uGUI vs UI Toolkit</td><td>M-02 프리팹 구조가 uGUI 기준(Toggle/Slider) — UI Toolkit이면 UXML/USS로 재작성 필요</td><td><span class="badge" style="background:var(--ds-st-idle-bg);color:var(--ds-st-idle-fg)">미결정</span></td></tr>
+      <tr><td class="mono">OQ-102</td><td>새 게임 시 기존 세이브 덮어쓰기 확인 모달 여부</td><td>patterns.html §접근성의 파괴적 행동 패턴 적용 여부가 갈림</td><td><span class="badge" style="background:var(--ds-st-idle-bg);color:var(--ds-st-idle-fg)">미결정</span></td></tr>
+      <tr><td class="mono">OQ-103</td><td>직업 2개 vs 3개, 정확한 이름·수치</td><td>wireframes.html SCR-002 카드 개수가 예시(2장)로만 표시됨 — 확정 시 갱신 필요</td><td><span class="badge" style="background:var(--ds-st-idle-bg);color:var(--ds-st-idle-fg)">미결정</span></td></tr>
+      <tr><td class="mono">OQ-104</td><td>초상화·배경 아트 확보 방법</td><td>모든 초상화 컴포넌트가 현재 아이콘 플레이스홀더 — 실제 아트로 교체 전제</td><td><span class="badge" style="background:var(--ds-st-idle-bg);color:var(--ds-st-idle-fg)">미결정</span></td></tr>
+    </table></div>
+  </section>
+
+  <footer class="ds">이전 <a href="patterns.html">3 · 상태 패턴 · 접근성</a> · 다음 → <a href="wireframes.html">5 · 화면 · 와이어프레임</a></footer>
+</div>
+
+<script src="ds.js"></script>
+</body>
+</html>

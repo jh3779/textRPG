@@ -1,6 +1,7 @@
 #include "../include/Game.h"
 #include "../include/Utils.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -35,6 +36,13 @@ namespace {
                   const std::string& key,
                   bool fallback) {
         return readInt(data, key, fallback ? 1 : 0) != 0;
+    }
+
+    std::string readStr(const std::map<std::string, std::string>& data,
+                         const std::string& key,
+                         const std::string& fallback) {
+        auto it = data.find(key);
+        return it == data.end() ? fallback : it->second;
     }
 }
 
@@ -131,7 +139,6 @@ void Game::run() {
                 end();
                 break;
             case GameState::MENU:
-            case GameState::PAUSED:
                 currentState = GameState::PLAYING;
                 break;
         }
@@ -163,7 +170,13 @@ void Game::displayGameStatus() const {
               << player->getName()
               << " HP " << player->getHp() << "/" << player->getMaxHp()
               << " | ATK " << player->getAttack()
-              << " | Gold " << player->getGold() << "\n";
+              << " | Gold " << player->getGold();
+
+    if (aiNarrator.isEnabled()) {
+        std::cout << " | AI " << (aiNarrator.isDegraded() ? "응답 없음(정적 텍스트로 진행 중)" : "ON");
+    }
+
+    std::cout << "\n";
 }
 
 void Game::handleLocationEvent() {
@@ -329,7 +342,7 @@ bool Game::saveGame(const std::string& filename) const {
         return false;
     }
 
-    file << "version=1\n"
+    file << "version=2\n"
          << "hp=" << player->getHp() << "\n"
          << "max_hp=" << player->getMaxHp() << "\n"
          << "attack=" << player->getAttack() << "\n"
@@ -341,6 +354,28 @@ bool Game::saveGame(const std::string& filename) const {
          << "game_round=" << gameRound << "\n"
          << "armory_looted=" << (armoryLooted ? 1 : 0) << "\n"
          << "goblin_defeated=" << (goblinDefeated ? 1 : 0) << "\n";
+
+    // 💡 인벤토리는 armoryLooted 같은 파생 플래그가 아니라 실제 아이템 목록을 그대로 저장한다
+    // (플래그만 저장하면 새 아이템이 추가될 때마다 세이브 포맷을 또 손봐야 함)
+    file << "item_count=" << playerInventory->getItemCount() << "\n";
+    for (int i = 0; i < playerInventory->getItemCount(); ++i) {
+        Item* item = playerInventory->getItem(i);
+        std::string prefix = "item_" + std::to_string(i) + "_";
+        file << prefix << "name=" << item->getName() << "\n"
+             << prefix << "type=" << static_cast<int>(item->getType()) << "\n"
+             << prefix << "value=" << item->getValue() << "\n"
+             << prefix << "price=" << item->getPrice() << "\n"
+             << prefix << "desc=" << item->getDescription() << "\n";
+    }
+
+    // 💡 퀘스트도 마찬가지로 상태(status)·진행도(currentCount)를 직접 저장한다.
+    // 제목/설명/보상 같은 고정 스펙은 Game() 생성자가 매번 동일하게 만들어주므로 저장하지 않는다.
+    file << "quest_count=" << quests.size() << "\n";
+    for (std::size_t i = 0; i < quests.size(); ++i) {
+        std::string prefix = "quest_" + std::to_string(i) + "_";
+        file << prefix << "status=" << static_cast<int>(quests[i].getStatus()) << "\n"
+             << prefix << "current=" << quests[i].getCurrentCount() << "\n";
+    }
 
     return true;
 }
@@ -367,7 +402,9 @@ bool Game::loadGame(const std::string& filename) {
     }
 
     int version = readInt(data, "version", 0);
-    if (version != 1) {
+    if (version != 2) {
+        // 구버전(version=1) 세이브는 아이템/퀘스트 상태를 포함하지 않아 안전하게 복원할 수
+        // 없으므로 거부한다 — 새 게임으로 다시 시작해야 함.
         return false;
     }
 
@@ -386,18 +423,28 @@ bool Game::loadGame(const std::string& filename) {
     armoryLooted = readBool(data, "armory_looted", false);
     goblinDefeated = readBool(data, "goblin_defeated", false);
 
+    // 💡 저장된 아이템 목록을 그대로 복원 (파생 플래그로 유추하지 않음)
     playerInventory->clear();
-    playerInventory->addItem(
-        Item("회복 물약", ItemType::POTION, 30, 50, "체력을 30 회복합니다.")
-    );
-    if (armoryLooted) {
+    int itemCount = readInt(data, "item_count", 0);
+    for (int i = 0; i < itemCount; ++i) {
+        std::string prefix = "item_" + std::to_string(i) + "_";
+        std::string name = readStr(data, prefix + "name", "아이템");
+        int typeInt = std::clamp(readInt(data, prefix + "type", 0), 0, 3);
+        int value = readInt(data, prefix + "value", 0);
+        int price = readInt(data, prefix + "price", 0);
+        std::string desc = readStr(data, prefix + "desc", "");
         playerInventory->addItem(
-            Item("작은 회복 물약", ItemType::POTION, 20, 30, "체력을 20 회복합니다.")
+            Item(name, static_cast<ItemType>(typeInt), value, price, desc)
         );
     }
 
-    for (Quest& quest : quests) {
-        quest.startQuest();
+    // 💡 퀘스트도 저장된 status/currentCount로 정확히 복원 (startQuest()로 리셋하지 않음)
+    int questCount = readInt(data, "quest_count", 0);
+    for (std::size_t i = 0; i < quests.size() && static_cast<int>(i) < questCount; ++i) {
+        std::string prefix = "quest_" + std::to_string(i) + "_";
+        int statusInt = std::clamp(readInt(data, prefix + "status", 0), 0, 4);
+        int currentCount = readInt(data, prefix + "current", 0);
+        quests[i].loadState(static_cast<QuestStatus>(statusInt), currentCount);
     }
 
     return true;

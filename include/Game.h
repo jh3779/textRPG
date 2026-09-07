@@ -27,7 +27,6 @@
 enum class GameState {
     MENU,           // 메인 메뉴
     PLAYING,        // 게임 진행 중
-    PAUSED,         // 일시 정지
     GAME_OVER,      // 게임 오버
     QUIT            // 게임 종료
 };

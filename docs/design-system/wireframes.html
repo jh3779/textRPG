@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>textRPG Unity DS · 5 화면 · 와이어프레임 v0.7</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="topnav">
+  <span class="brand">textRPG Unity DS <span class="mono" style="font-size:11px;font-weight:500">v0.7</span></span>
+  <a href="design-system.html">1 · 원칙 &amp; 파운데이션</a>
+  <a href="components.html">2 · 컴포넌트</a>
+  <a href="patterns.html">3 · 상태 패턴 · 접근성</a>
+  <a href="unity-mapping.html">4 · 구현 매핑</a>
+  <span class="cur">5 · 화면 · 와이어프레임</span>
+  <span class="spacer"></span>
+  <button data-theme-toggle>◐ 테마</button>
+</nav>
+
+<div class="wrap">
+
+  <header class="pagehead">
+    <div class="t">5 · 화면 · 와이어프레임 <span class="tag">v0.7 — 잉크 선택 표식 추가</span></div>
+    <div class="s">정본: <code>../02_ui_flow.md</code> · <code>../03_screen_contract.md</code> · <code>../07_visual_style.md</code>(2026-09-04 보드게임 개정). 타이틀·직업선택·인벤토리·퀘스트·결과 화면은 나무 테이블(<code>.wood</code>)+양피지 카드 유지. 탐색·전투 화면은 v0.5부터 전체화면 배경(<code>.fullbleed</code>) 위에 가벼운 버튼(<code>.btn-light</code>)과 인물(전투는 <code>.combatants</code>)을 직접 얹는 방식으로 재구성.</div>
+    <div class="toc">
+      <a href="#w1">SCR-001 타이틀</a><a href="#w2">SCR-002 직업 선택</a><a href="#w3">SCR-003 탐색</a><a href="#w4">SCR-004 전투</a><a href="#w5">SCR-005·006 오버레이</a><a href="#w6">SCR-007·008 결과</a><a href="#flow">전체 흐름도</a>
+    </div>
+  </header>
+
+  <section id="w1" class="sec">
+    <div class="sec-h"><span class="sec-num">S-001</span><span class="sec-t">타이틀 / 메인 메뉴</span><span class="tag">SCR-001 · FLOW-101</span></div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div class="frame">
+        <div class="tag">세이브 없음 — 나무 테이블 위 표지 양피지</div>
+        <div class="gw">
+          <div class="body wood" style="align-items:center;justify-content:center">
+            <div class="parchment parchment-orn pad" style="width:230px;padding:24px 22px;display:flex;flex-direction:column;align-items:center;gap:16px">
+              <span class="orn-br">❧</span>
+              <div class="dungeon-title">
+                <div class="row"><span class="fl">✦</span><div class="name">DUNGEON GATE</div><span class="fl">✦</span></div>
+                <div class="rule"></div>
+              </div>
+              <div class="dice"><span class="msym">casino</span></div>
+              <div style="display:flex;flex-direction:column;gap:9px;width:100%">
+                <div class="btn btn-fill" style="width:100%">새 게임</div>
+                <div class="btn btn-out" style="width:100%;opacity:.4;border-color:#8A7F68;color:#8A7F68">이어하기</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="hand-lg">타이틀 자체가 "책 표지" 양피지 카드 — 모서리 인장(❧)과 룰선(<code>.dungeon-title .rule</code>)으로 디테일 추가. 버튼도 금속 각인 느낌(그라디언트 베벨 + 모서리 다이아몬드 장식)으로 강화. 나머지 화면들과 재질 언어를 처음부터 통일.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="w2" class="sec">
+    <div class="sec-h"><span class="sec-num">S-002</span><span class="sec-t">직업 선택 — 캐릭터 시트</span><span class="tag">SCR-002 · FLOW-101 · INV-01</span></div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div class="frame">
+        <div class="tag">전신 실루엣 + 스탯 칸 (전사 선택됨)</div>
+        <div class="gw">
+          <div class="titlebar"><b>직업을 선택하세요</b></div>
+          <div class="body wood">
+            <div style="display:flex;gap:8px;justify-content:center">
+              <div class="parchment charsheet sel" style="flex:1">
+                <svg class="inkmark" viewBox="0 0 100 100" preserveAspectRatio="none"><ellipse class="ink-wash" cx="50" cy="50" rx="46" ry="46"></ellipse><path class="ink-loop" d="M10,18 C3,38 4,68 12,86 C28,97 68,96 88,89 C97,70 96,32 90,14 C74,3 26,4 10,18 Z"></path></svg>
+                <div class="silhouette"><img class="figimg" src="../../art-assets/char_전사_상반신.png" alt="전사"></div>
+                <div class="stats">
+                  <div style="font-family:var(--ds-font-display);font-weight:700;font-size:12px;color:#3B3320">전사</div>
+                  <div class="stat-row"><span>HP</span><b>110</b></div>
+                  <div class="stat-row"><span>ATK</span><b>12</b></div>
+                  <div class="stat-row"><span>DEF</span><b>5</b></div>
+                  <div class="stat-row"><span>ITEM</span><b style="font-size:9px">장검</b></div>
+                </div>
+              </div>
+              <div class="parchment charsheet" style="flex:1">
+                <div class="silhouette"><img class="figimg" src="../../art-assets/char_도적_상반신.png" alt="도적"></div>
+                <div class="stats">
+                  <div style="font-family:var(--ds-font-display);font-weight:700;font-size:12px;color:#3B3320">도적</div>
+                  <div class="stat-row"><span>HP</span><b>90</b></div>
+                  <div class="stat-row"><span>ATK</span><b>14</b></div>
+                  <div class="stat-row"><span>DEF</span><b>2</b></div>
+                  <div class="stat-row"><span>ITEM</span><b style="font-size:9px">단검 2자루</b></div>
+                </div>
+              </div>
+              <div class="parchment charsheet" style="flex:1">
+                <div class="silhouette"><img class="figimg" src="../../art-assets/char_마법사_상반신.png" alt="마법사"></div>
+                <div class="stats">
+                  <div style="font-family:var(--ds-font-display);font-weight:700;font-size:12px;color:#3B3320">마법사</div>
+                  <div class="stat-row"><span>HP</span><b>75</b></div>
+                  <div class="stat-row"><span>ATK</span><b>17</b></div>
+                  <div class="stat-row"><span>DEF</span><b>1</b></div>
+                  <div class="stat-row"><span>ITEM</span><b style="font-size:9px">지팡이</b></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="statusbar" style="justify-content:center"><div class="btn btn-fill" style="height:28px;padding:0 20px;font-size:11px">확정</div></div>
+        </div>
+        <div class="hand-lg">아이콘 카드 대신 양피지 캐릭터 시트 3장. 실루엣 자리에 실제 업로드된 일러스트 연결됨(art-assets/char_*.png, DEC-113). ITEM 칸은 직업별 시작 아이템(DEC-111, 정확한 이름은 OQ-103 확정 대기). 선택된 시트는 금색 아웃라인 대신 볼펜으로 동그라미 친 잉크 자국(<code>.inkmark</code>, 2026-09-04)으로 "직접 골랐다"는 느낌을 줌.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="w3" class="sec">
+    <div class="sec-h"><span class="sec-num">S-003</span><span class="sec-t">탐색 화면 — 전체화면 배경 + 가벼운 버튼</span><span class="tag">SCR-003 · FLOW-102·103 · 2026-09-04 재설계</span></div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div class="frame">
+        <div class="tag">던전 입구 — 라운드 1</div>
+        <div class="gw">
+          <div class="body fullbleed">
+            <img class="bgimg" src="../../art-assets/scene_던전입구.png" alt="던전 입구">
+            <div class="statusline">[라운드 1] 전사 HP 100/100 · ATK 12 · Gold 0</div>
+            <div class="board" style="position:relative;z-index:2;margin:0 10px">
+              <div class="tile cur"><span class="msym">castle</span></div>
+              <div class="path"></div>
+              <div class="tile"><span class="msym">merge</span></div>
+              <div class="path"></div>
+              <div class="tile"><span class="msym">inventory_2</span></div>
+              <div class="path"></div>
+              <div class="tile"><span class="msym">pest_control</span></div>
+              <div class="path"></div>
+              <div class="tile"><span class="msym">castle</span></div>
+            </div>
+            <div class="spacer-fill"></div>
+            <div class="textbar">
+              <div class="ttl">던전 입구</div>
+              <div class="body-txt">차가운 바람이 새어 나오는 던전 입구에 서 있습니다.</div>
+            </div>
+            <div class="btnrow">
+              <div class="btn-light">1. 던전에 들어간다</div>
+              <div class="btn-light">2. 상태를 확인한다</div>
+              <div class="btn-light">3. 저장하고 종료</div>
+            </div>
+          </div>
+        </div>
+        <div class="hand-lg">배경 씬이 화면 전체를 채우고(<code>.fullbleed</code>), 그 위에 상태 한 줄·보드 타일·텍스트바·선택지 버튼이 반투명 레이어로 얹힘 — 양피지 카드 대신 가벼운 outline 버튼(<code>.btn-light</code>). 하단 그라디언트로 텍스트 가독성 확보. 나머지 4개 지역도 배경 이미지만 바꾸면 동일 레이아웃 재사용.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="w4" class="sec">
+    <div class="sec-h"><span class="sec-num">S-004</span><span class="sec-t">전투 화면 — 배경 위 대립 구도</span><span class="tag">SCR-004 · FLOW-102 · STATE-102 · 2026-09-04 재설계</span></div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div class="frame">
+        <div class="tag">전투 진행 중 — 2턴 (어두운 통로, vs 고블린)</div>
+        <div class="gw">
+          <div class="body fullbleed">
+            <img class="bgimg" src="../../art-assets/scene_어두운통로.png" alt="전투 배경 — 어두운 통로">
+            <div class="statusline">--- 전투 2턴 ---</div>
+            <div class="combatants">
+              <div class="combatant">
+                <img src="../../art-assets/char_전사.png" alt="전사">
+                <div class="cname">전사</div>
+                <div class="cbar"><div class="lbl"><span>94</span><span>100</span></div><div class="track"><div class="fill" style="width:94%;background:var(--ds-primary)"></div></div></div>
+              </div>
+              <div class="vsmark"><span class="msym" style="display:block;font-size:16px">bolt</span>VS</div>
+              <div class="combatant">
+                <img src="../../art-assets/enemy_고블린_약소형.png" alt="고블린">
+                <div class="cname">고블린</div>
+                <div class="cbar"><div class="lbl"><span>17</span><span>30</span></div><div class="track"><div class="fill" style="width:57%;background:var(--ds-tertiary)"></div></div></div>
+              </div>
+            </div>
+            <div class="textbar">
+              <div class="body-txt">모험가의 공격! 고블린에게 14 피해.<br>고블린의 반격! 모험가에게 4 피해.</div>
+            </div>
+            <div class="btnrow">
+              <div class="btn-light">공격한다</div>
+              <div class="btn-light danger">도망친다</div>
+              <div class="dice" style="align-self:center"><span class="msym">casino</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="hand-lg">캐릭터를 카드 프레임 밖으로 꺼내 그 상황의 배경(<code>art-assets/scene_어두운통로.png</code>) 위에 직접 세움 — 진짜 대립 구도. 인물 이미지는 가장자리를 마스킹 처리(<code>mask-image</code>)해 배경과 자연스럽게 섞이게 함(원본이 진짜 투명 PNG는 아니라서, 실제 구현 시 배경 제거 작업을 하면 마스킹 없이도 깔끔해짐). 고블린은 예시로 "약소형" 사용 — 실전엔 4변종 랜덤(DEC-114).</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="w5" class="sec">
+    <div class="sec-h"><span class="sec-num">S-005</span><span class="sec-t">인벤토리 · 퀘스트 — 카드 &amp; 스크롤</span><span class="tag">SCR-005 · SCR-006</span></div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div class="frame">
+        <div class="tag">인벤토리 (아이템 카드 2장)</div>
+        <div class="gw">
+          <div class="titlebar"><b>인벤토리 2/5</b></div>
+          <div class="body wood" style="flex-direction:row;justify-content:center;align-items:center">
+            <div class="tcard parchment"><div class="tc-label">회복 물약</div><div class="tc-icon"><img class="figimg" src="../../art-assets/item_회복물약.png" alt="회복 물약"></div><div class="tc-desc">체력 30 회복</div></div>
+            <div class="tcard parchment"><div class="tc-label">작은 회복 물약</div><div class="tc-icon"><img class="figimg" src="../../art-assets/item_작은회복물약.png" alt="작은 회복 물약"></div><div class="tc-desc">체력 20 회복</div></div>
+          </div>
+        </div>
+        <div class="hand-lg">아이템도 동일한 <code>.tcard</code> 언어 — 선택지 카드와 시각적으로 같은 계열임을 즉시 알 수 있게. 아이콘은 실제 업로드된 투명 배경 물약 이미지로 연결됨.</div>
+      </div>
+      <div class="frame">
+        <div class="tag">퀘스트 (양피지 스크롤)</div>
+        <div class="gw">
+          <div class="titlebar"><b>퀘스트</b></div>
+          <div class="body wood" style="align-items:center;justify-content:center">
+            <div class="parchment parchment-orn pad" style="width:220px;padding:16px 14px">
+              <span class="orn-br">❧</span>
+              <div style="display:flex;justify-content:space-between;padding-top:2px"><b style="font-family:var(--ds-font-display);font-size:13px;color:#3B3320">던전 탈출</b><span class="badge" style="background:var(--ds-st-busy-bg);color:var(--ds-st-busy-fg);font-size:10px">진행 중</span></div>
+              <div class="note" style="margin-top:6px;font-size:11px;color:#5B4E33">보스의 방까지 도달해 던전의 주인을 쓰러뜨리세요.</div>
+              <div class="tag" style="margin-top:6px;color:#8A7568">진행도 0/1 · 보상 EXP100 · Gold80</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="w6" class="sec">
+    <div class="sec-h"><span class="sec-num">S-006</span><span class="sec-t">게임 오버 / 승리 — 양피지 결과지</span><span class="tag">SCR-007 · SCR-008 · FLOW-102</span></div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div class="frame">
+        <div class="tag">게임 오버</div>
+        <div class="gw">
+          <div class="body wood" style="align-items:center;justify-content:center">
+            <div class="parchment parchment-orn pad" style="width:230px;padding:18px;text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center">
+              <span class="orn-br">❧</span>
+              <div style="font-family:var(--ds-font-display);font-weight:700;color:#8B2E2E">GAME OVER</div>
+              <div class="note" style="color:#5B4E33">체력이 0이 되어 모험이 끝났습니다.</div>
+              <div class="mono" style="font-family:var(--ds-font-mono);font-size:11px;color:#5B4E33">Lv1 · HP0/100 · ATK12 · Gold0</div>
+              <div class="btn btn-out" style="margin-top:4px;border-color:#8A7F68;color:#5B4E33">타이틀로 돌아가기</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame">
+        <div class="tag">승리 (던전 클리어)</div>
+        <div class="gw">
+          <div class="body wood" style="align-items:center;justify-content:center">
+            <div class="parchment parchment-orn pad" style="width:230px;padding:18px;text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center;outline:2px solid var(--ds-primary);outline-offset:2px">
+              <span class="orn-br">❧</span>
+              <div style="font-family:var(--ds-font-display);font-weight:700;color:#8B6914">던전 클리어!</div>
+              <div class="note" style="color:#5B4E33">퀘스트 보상으로 경험치 100, 골드 80 획득.</div>
+              <div class="mono" style="font-family:var(--ds-font-mono);font-size:11px;color:#5B4E33">Lv2 · HP110/110 · ATK15 · Gold105</div>
+              <div class="btn btn-fill" style="margin-top:4px">타이틀로 돌아가기</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note">두 화면 모두 "즉시 재시작" 버튼을 두지 않는다 — 타이틀에서 명시적으로 "새 게임"을 눌러야 함(SCR-007·008 금지 항목).</div>
+  </section>
+
+  <section id="flow" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">F</span><span class="sec-t">전체 흐름도</span><span class="tag">02_ui_flow.md FLOW-101~103</span></div>
+    <div class="note mono" style="font-family:var(--ds-font-mono);font-size:12px;line-height:2;white-space:pre-wrap">SCR-001 타이틀 ──[새 게임]──▶ SCR-002 직업선택(캐릭터시트) ──[확정]──▶ SCR-003 탐색(보드)
+SCR-001 타이틀 ──[이어하기]────────────────────────────────────────▶ SCR-003 탐색 (직업 복원됨)
+SCR-003 탐색 ──[적 있는 지역]──▶ SCR-004 전투(판정카드) ──[승리]──▶ SCR-003 탐색 또는 SCR-008 승리(보스전)
+                                          SCR-004 전투 ──[패배]──▶ SCR-007 게임오버
+                                          SCR-004 전투 ──[도망성공]──▶ SCR-003 탐색(이전 지역)
+SCR-003 탐색 ──[저장하고 종료]──▶ SCR-001 타이틀
+SCR-007 / SCR-008 ──[타이틀로]──▶ SCR-001 타이틀</div>
+  </section>
+
+  <footer class="ds">이전 <a href="unity-mapping.html">4 · 구현 매핑</a> · 처음으로 <a href="design-system.html">1 · 원칙 &amp; 파운데이션</a></footer>
+</div>
+
+<script src="ds.js"></script>
+</body>
+</html>

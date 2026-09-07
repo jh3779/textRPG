@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>textRPG Unity DS · 3 상태 패턴 · 접근성 v0.7</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="topnav">
+  <span class="brand">textRPG Unity DS <span class="mono" style="font-size:11px;font-weight:500">v0.7</span></span>
+  <a href="design-system.html">1 · 원칙 &amp; 파운데이션</a>
+  <a href="components.html">2 · 컴포넌트</a>
+  <span class="cur">3 · 상태 패턴 · 접근성</span>
+  <a href="unity-mapping.html">4 · 구현 매핑</a>
+  <a href="wireframes.html">5 · 화면 · 와이어프레임</a>
+  <span class="spacer"></span>
+  <button data-theme-toggle>◐ 테마</button>
+</nav>
+
+<div class="wrap">
+
+  <header class="pagehead">
+    <div class="t">3 · 상태 패턴 · 접근성</div>
+    <div class="s">정본: <code>../05_state_machine.md</code></div>
+    <div class="toc">
+      <a href="#p1">전투 결과</a><a href="#p2">인벤토리</a><a href="#p3">퀘스트</a><a href="#p4">직업 선택</a><a href="#a11y">접근성</a>
+    </div>
+  </header>
+
+  <section id="p1" class="sec">
+    <div class="sec-h"><span class="sec-num">S-01</span><span class="sec-t">전투 결과 (STATE-102 BattleResult)</span><span class="tag">SCR-004</span></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+      <div class="card pad">
+        <span class="badge" style="background:var(--ds-st-busy-bg);color:var(--ds-st-busy-fg)">진행 중</span>
+        <div class="note" style="margin-top:8px">라운드 로그 누적, HP바 실시간 갱신. 가짜 진행률·낙관적 승리 표시 금지 — 실제 HP가 0이 되기 전엔 승패를 선표시하지 않는다.</div>
+      </div>
+      <div class="card pad">
+        <span class="badge" style="background:var(--ds-st-done-bg);color:var(--ds-st-done-fg)">승리</span>
+        <div class="note" style="margin-top:8px">"승리했습니다!" + 획득 경험치/골드를 즉시 표시 → 다음 지역 또는 SCR-008.</div>
+      </div>
+      <div class="card pad">
+        <span class="badge" style="background:var(--ds-st-fail-bg);color:var(--ds-st-fail-fg)">패배</span>
+        <div class="note" style="margin-top:8px">"전투에서 쓰러졌습니다" → SCR-007. 재시도는 타이틀에서 "새 게임"으로만(즉시 재시작 금지, SCR-007 금지 항목).</div>
+      </div>
+      <div class="card pad">
+        <span class="badge" style="background:var(--ds-st-idle-bg);color:var(--ds-st-idle-fg)">도망 실패</span>
+        <div class="note" style="margin-top:8px">"도망에 실패했습니다!" 즉시 표시 후 적 반격 진행 — 전투 화면 유지(SCR-004).</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="p2" class="sec">
+    <div class="sec-h"><span class="sec-num">S-02</span><span class="sec-t">인벤토리 (SCR-005)</span><span class="tag">ENT-105</span></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+      <div class="card pad">
+        <div class="tag">empty</div>
+        <div style="text-align:center;padding:20px 0;color:var(--ds-on-surface-variant)">
+          <span class="msym" style="font-size:32px;opacity:.5">inventory_2</span>
+          <div class="note" style="margin-top:6px">보유한 아이템이 없습니다</div>
+        </div>
+      </div>
+      <div class="card pad">
+        <div class="tag">가득 참 (5/5)</div>
+        <div class="note" style="margin-top:8px">용량 표시를 <span class="mono" style="color:var(--ds-tertiary)">5/5</span>로 강조(색+숫자). 신규 획득 시 "인벤토리가 가득 찼습니다" 안내(콘솔 버전 <code>Inventory::addItem</code> 그대로).</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="p3" class="sec">
+    <div class="sec-h"><span class="sec-num">S-03</span><span class="sec-t">퀘스트 상태 (STATE-103)</span><span class="tag">SCR-006</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <span class="badge" style="background:var(--ds-st-idle-bg);color:var(--ds-st-idle-fg)">시작 전</span>
+      <span class="badge" style="background:var(--ds-st-busy-bg);color:var(--ds-st-busy-fg)">진행 중 (0/1)</span>
+      <span class="badge" style="background:var(--ds-st-done-bg);color:var(--ds-st-done-fg)">완료</span>
+      <span class="badge" style="background:var(--ds-st-done-bg);color:var(--ds-st-done-fg)">보상 수령</span>
+    </div>
+    <div class="note">NOT_STARTED → IN_PROGRESS → COMPLETED → REWARDED 순서로만 전이(INV, 05_state_machine). 역행 없음.</div>
+  </section>
+
+  <section id="p4" class="sec">
+    <div class="sec-h"><span class="sec-num">S-04</span><span class="sec-t">직업 선택 미확정 (SCR-002)</span><span class="tag">INV-01</span></div>
+    <div class="card pad" style="display:flex;align-items:center;gap:16px">
+      <div class="btn btn-fill" style="opacity:.4;pointer-events:none">확정</div>
+      <div class="note">카드를 하나도 고르지 않으면 "확정" 버튼은 비활성 상태로 표시하고, 클릭 불가 이유를 별도 안내 없이 시각적으로만 막는다(오류 토스트 불필요 — 애초에 누를 수 없으므로).</div>
+    </div>
+  </section>
+
+  <section id="a11y" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">A</span><span class="sec-t">접근성</span><span class="tag">REQ-NF-105 · 07_visual_style 접근성 메모</span></div>
+    <div class="tblwrap"><table>
+      <tr><th>항목</th><th>기준</th></tr>
+      <tr><td>키보드 전용 조작</td><td>모든 선택지에 숫자 단축키(1/2/3) 매핑 — 콘솔 버전의 입력 습관 그대로 승계</td></tr>
+      <tr><td>색 대비</td><td>금색(#D4AF37) on 배경(#0F0D1A) — WCAG AA 이상 확인 필요(구현 단계에서 대비 도구로 재검증)</td></tr>
+      <tr><td>색 단독 구분 금지</td><td>HP 위험·전투 결과 등은 색 + 아이콘/텍스트로 이중 부호화(색맹 고려)</td></tr>
+      <tr><td>파괴적 행동</td><td>"새 게임"으로 기존 세이브를 덮어쓰는 흐름은 OQ-102 미결정 — 확정 시 outlined-error 스타일 + 확인 다이얼로그로 처리(기본 포커스는 "취소")</td></tr>
+    </table></div>
+  </section>
+
+  <footer class="ds">이전 <a href="components.html">2 · 컴포넌트</a> · 다음 → <a href="unity-mapping.html">4 · 구현 매핑</a></footer>
+</div>
+
+<script src="ds.js"></script>
+</body>
+</html>
