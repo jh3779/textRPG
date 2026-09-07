@@ -380,4 +380,61 @@ th{background:var(--ds-surface-container-low);font-weight:700}
 .dungeon-title .rule{width:82%;height:1px;background:linear-gradient(90deg,transparent,#8A6E3A 15%,#8A6E3A 85%,transparent);position:relative;margin-top:2px}
 .dungeon-title .rule::after{content:"◆";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:7px;color:#8A6E3A}
 
+/* ============================================================
+   양피지 필사본 디테일 확장 — 2026-09-07 신규(DEC-121)
+   출처: ~/Downloads/quill_parchment_reference/quill_parchment_reference.md
+   (Inkulinati 45% · Darkest Dungeon 25% · Scriptorium 30% 블렌드 제안 중,
+   이미 확정된 "Gilded Dungeon" 재질·색·레이아웃 원칙과 자연스럽게 결합되는
+   두 가지만 선택 적용: ① 큰 양피지 패널의 중앙 접힘선, ② 퀘스트/결과 화면처럼
+   양피지 카드가 이미 있는 곳의 깃펜 필기 연출. 탐색·전투의 fullbleed 배경
+   구성(DEC-116)이나 타로/시트형 작은 카드(.tcard/.charsheet)에는 적용하지
+   않는다 — "화면 전체를 양피지 한 장으로" 바꾸는 재구성은 이번 범위가 아니다.
+   ============================================================ */
+
+/* 중앙 접힘선(Fold Line) — quill_parchment_reference.md의 Inkulinati 참고(2-1절,
+   "가운데 접힘선이 살아 있어 실제 책/문서 같은 인상")를 큰 양피지 패널에만 반영.
+   .parchment::before(이중 테두리)·.parchment-orn::after(필리그리, DEC-120)와
+   같은 가상요소를 또 점유하면 절대배치 충돌이 재발할 수 있어(DEC-120 교훈),
+   가상요소 대신 .inkmark와 동일한 패턴 — 실제 자식 엘리먼트(.foldline)를
+   패널 내부에 직접 넣는 방식으로 구현한다. 새 색상을 짓지 않고 기존 잉크브라운
+   토큰 #6B4A1E(rgb(107,74,30) — .qw-pen/.tc-icon/.silhouette 아이콘과 동일 값)을
+   그대로 재사용하고 알파값만 바꿔 옅게 쓴다(2026-09-07 review-verify-agent
+   Finding 3 반영 — 최초 구현 시 rgba(74,58,26,*)라는 근접하지만 다른 값을 새로
+   만들어 썼던 것을 기존 값으로 통일). */
+.foldline{
+  position:absolute;top:5%;bottom:5%;left:50%;width:3px;transform:translateX(-50%);
+  pointer-events:none;z-index:1;
+  background:linear-gradient(180deg, transparent 0%, rgba(107,74,30,.4) 12%, rgba(107,74,30,.55) 50%, rgba(107,74,30,.4) 88%, transparent 100%);
+  box-shadow:-2px 0 5px -1px rgba(35,26,10,.35), 2px 0 4px -1px rgba(255,250,235,.35);
+}
+
+/* 깃펜 필기 연출(Quill Reveal) — quill_parchment_reference.md 3-1절
+   "글씨 생성 위치를 페이지 공간 안에 귀속시킨다"는 원칙을, 이미 양피지 카드가
+   있는 화면(퀘스트 스크롤·결과지)의 서술 텍스트에만 결합한다. 왼쪽부터 글자가
+   드러나고 그 끝을 작은 펜촉 아이콘이 따라간다. 기존 볼펜 잉크자국(.inkmark,
+   DEC-118)과 용도가 달라 색을 구분 — .inkmark는 "플레이어가 표시"=진남색
+   (#2b3f7a), 이 연출은 "세계가 기록"=기존 잉크브라운(#6B4A1E, .tc-icon/
+   .silhouette 아이콘과 동일 톤)을 재사용해 강조색을 늘리지 않는다. 폰트는
+   손글씨체로 바꾸지 않고 Pretendard 유지(07_visual_style.md 타이포그래피
+   원칙 — 가독성 우선).
+   2026-09-07 수정(review-verify-agent Finding 1, Major 확인): 최초 구현은
+   .qw-pen을 top:-3px(첫 줄 기준 고정)에 두고 인라인 텍스트의 좌→우 진행을
+   그대로 따라가게 했는데, 퀘스트/결과 서술은 실제 글자 수·컨테이너 폭·폰트
+   대체(웹폰트 로드 실패 시 시스템 폰트로 폴백, 환경마다 자간이 다름) 조합에
+   따라 2줄로 줄바꿈될 수 있고, 그 경우 펜이 첫 줄에서만 맞고 둘째 줄부터는
+   위치가 어긋났다(실제로 review-verify-agent 환경에서 재현됨 — 이 환경의
+   Chromium에서는 우연히 1줄로 렌더링되어 처음엔 발견하지 못함, 폰트 폭
+   민감성 자체가 근본 문제). 그래서 펜을 "특정 줄의 글자 끝"이 아니라
+   ".quillwrite 전체 문단 아래의 진행 기준선"을 따라가도록 다시 설계했다 —
+   .quillwrite를 display:block으로 바꿔 문단 전체 폭을 갖게 하고, .qw-pen을
+   문단 하단(bottom:0, padding-bottom:14px로 자리 확보)에 절대배치해 줄 수와
+   무관하게 항상 올바른 위치에 오도록 했다. 텍스트 자체는 여전히 clip-path로
+   왼쪽부터 드러나며, 줄바꿈이 있어도(여러 줄이 동시에 커튼처럼 드러남) 시각적
+   충돌 없이 "기록되는 중"이라는 인상을 유지한다. */
+.quillwrite{position:relative;display:block;max-width:100%;padding-bottom:14px}
+.quillwrite .qw-text{display:block;clip-path:inset(0 100% 0 0);animation:qw-reveal 1.6s steps(40,end) forwards}
+.quillwrite .qw-pen{position:absolute;left:0;bottom:0;font-size:13px;color:#6B4A1E;opacity:0;animation:qw-pen-move 1.6s linear forwards;transform:translateX(-50%) rotate(-38deg)}
+@keyframes qw-reveal{to{clip-path:inset(0 0 0 0)}}
+@keyframes qw-pen-move{0%{left:0;opacity:.85}94%{opacity:.85}100%{left:100%;opacity:0}}
+
 footer.ds{font-size:12px;color:var(--ds-on-surface-variant);line-height:1.7;border-top:1px solid var(--ds-outline-variant);padding-top:16px;margin-top:6px}

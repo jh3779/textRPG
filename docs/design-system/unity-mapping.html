@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>textRPG Unity DS · 4 구현 매핑 v0.7</title>
+<title>textRPG Unity DS · 4 구현 매핑 v0.8</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
 <nav class="topnav">
-  <span class="brand">textRPG Unity DS <span class="mono" style="font-size:11px;font-weight:500">v0.7</span></span>
+  <span class="brand">textRPG Unity DS <span class="mono" style="font-size:11px;font-weight:500">v0.8</span></span>
   <a href="design-system.html">1 · 원칙 &amp; 파운데이션</a>
   <a href="components.html">2 · 컴포넌트</a>
   <a href="patterns.html">3 · 상태 패턴 · 접근성</a>
@@ -51,6 +51,8 @@
       <tr><td>재질(나무·양피지, C-00, v0.2 신규)</td><td>Unity <code>Sprite</code>(9-slice) 두 종류로 제작 — 코드로 그리지 않고 텍스처 애셋으로. 이 문서의 CSS 그라디언트는 웹 프리뷰 근사치일 뿐, 실제 아트는 OQ-104 확정 후 교체</td></tr>
       <tr><td>배경 씬 (C-10, v0.3 신규)</td><td><code>SceneBackdrop.prefab</code> — 지역별 배경 Sprite 하나 + 하단 그라디언트 오버레이 Image. <code>ExplorePanel</code> 상단에 고정 배치, 지역 전환 시 Sprite만 교체(패널 자체는 유지)</td></tr>
       <tr><td>대립 구도 (C-11, v0.3 신규)</td><td><code>VersusStage.prefab</code> — 좌우 <code>CharacterFigure</code>(플레이어)·<code>EnemyFigure</code>(적) + 중앙 clash 아이콘. <code>BattlePanel</code> 상단에 배치, 기존 <code>PortraitFrame</code>보다 큰 사이즈 프리셋 사용</td></tr>
+      <tr><td>중앙 접힘선 (C-00 확장, v0.8/DEC-121 신규)</td><td>별도 프리팹 없이 <code>Image</code> 한 장(세로 그라디언트 스프라이트, 9-slice 아님) — 표지·스크롤·결과지 프리팹의 자식으로 중앙에 고정 배치. <code>CharacterSheet</code>·<code>TarotCard</code> 등 작은 카드 프리팹에는 넣지 않는다</td></tr>
+      <tr><td>깃펜 필기 연출 (C-12, v0.8/DEC-121 신규)</td><td>별도 프리팹보다 <code>QuillRevealText</code> 같은 작은 헬퍼 컴포넌트(TMP 텍스트의 <code>maxVisibleCharacters</code>를 코루틴으로 순차 증가 + 펜촉 아이콘 <code>RectTransform</code>을 같은 시간 동안 이동) — <code>QuestPanel</code>·<code>ResultPanel</code>의 서술 텍스트에만 붙인다. 웹 프리뷰의 <code>clip-path</code> 애니메이션과 시각적으로 동등한 결과를 내는 것이 목표. <b>2026-09-07 수정(review-verify-agent Major 확인, 웹 프리뷰 Finding 1과 동일한 함정)</b>: 펜 아이콘을 TMP의 특정 글자(caret) 위치에 맞춰 따라가게 구현하면, 실제 퀘스트 텍스트 길이·폰트·해상도에 따라 줄바꿈이 달라질 때 마지막 줄이 아닌 중간 줄에서 궤적이 어긋날 수 있다 — 웹 프리뷰와 동일하게 <b>펜은 특정 글자가 아니라 텍스트 블록 전체의 하단 진행 기준선(RectTransform 하단에 고정된 가로 트랙)을 따라가도록</b> 구현할 것. TMP의 <code>textInfo.lineCount</code>로 캐릭터 단위 위치를 따라가려는 시도는 하지 않는다(웹 프리뷰의 <code>.qw-pen</code>이 문단 하단에 고정된 것과 동일한 이유).</td></tr>
     </table></div>
   </section>
 

@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>textRPG Unity DS · 2 컴포넌트 v0.7</title>
+<title>textRPG Unity DS · 2 컴포넌트 v0.8</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
 <nav class="topnav">
-  <span class="brand">textRPG Unity DS <span class="mono" style="font-size:11px;font-weight:500">v0.7</span></span>
+  <span class="brand">textRPG Unity DS <span class="mono" style="font-size:11px;font-weight:500">v0.8</span></span>
   <a href="design-system.html">1 · 원칙 &amp; 파운데이션</a>
   <span class="cur">2 · 컴포넌트</span>
   <a href="patterns.html">3 · 상태 패턴 · 접근성</a>
@@ -22,10 +22,10 @@
 <div class="wrap">
 
   <header class="pagehead">
-    <div class="t">2 · 컴포넌트 <span class="tag">v0.7 — 잉크 선택 표식 추가</span></div>
+    <div class="t">2 · 컴포넌트 <span class="tag">v0.8 — 접힘선 · 깃펜 필기 연출 추가</span></div>
     <div class="s">정본: <code>../03_screen_contract.md</code> · <code>../04_data_model.md</code> · <code>../07_visual_style.md</code></div>
     <div class="toc">
-      <a href="#c0">재질</a><a href="#c1">초상화 프레임</a><a href="#c2">HP/MP 바</a><a href="#c3">상태 바</a><a href="#c4">선택지 카드</a><a href="#c5">캐릭터 시트</a><a href="#c6">보드 타일 맵</a><a href="#c7">주사위 배지</a><a href="#c8">아이템/퀘스트</a><a href="#c9">배지·버튼</a><a href="#c10">전체화면 배경</a><a href="#c11">대립 구도</a><a href="#exclude">제외 목록</a>
+      <a href="#c0">재질</a><a href="#c1">초상화 프레임</a><a href="#c2">HP/MP 바</a><a href="#c3">상태 바</a><a href="#c4">선택지 카드</a><a href="#c5">캐릭터 시트</a><a href="#c6">보드 타일 맵</a><a href="#c7">주사위 배지</a><a href="#c8">아이템/퀘스트</a><a href="#c9">배지·버튼</a><a href="#c10">전체화면 배경</a><a href="#c11">대립 구도</a><a href="#c12">깃펜 필기 연출</a><a href="#exclude">제외 목록</a>
     </div>
   </header>
 
@@ -44,9 +44,14 @@
         <div style="height:70px;border-radius:8px;border:2px solid var(--ds-primary);background:var(--ds-surface-container)"></div>
         <div class="tag">금속 프레임 — 초상화·HP바 전용(재질 아님, 기존 원칙 유지)</div>
       </div>
+      <div class="frame">
+        <div class="parchment" style="height:70px"><div class="foldline"></div></div>
+        <div class="tag">.parchment + .foldline — 큰 양피지 패널 전용 중앙 접힘선(2026-09-07, DEC-121)</div>
+      </div>
     </div>
     <div class="note">셋을 섞어 쓰지 않는다 — "인물"은 항상 금속 프레임, "텍스트/선택/아이템"은 항상 양피지, "화면 바탕"은 항상 나무. 재질이 곧 의미 구분선이다.</div>
     <div class="note" style="margin-top:4px">2026-09-04: <code>.parchment</code>에 비네트(가장자리 어둡게)·비대칭 모서리 반경(손으로 자른 듯한 느낌)·이중 테두리를 추가해 텍스처를 더 살림. 큰 패널(<code>.parchment-orn</code> 수식자)에는 모서리 인장도 얹는다 — 작은 카드(tcard 등)에는 과해서 안 씀. <b>2026-09-07(DEC-120) 개정</b>: 모서리 인장을 유니코드 ❧ 한 글자 대신 인라인 SVG 필리그리(소용돌이 덩굴무늬, <code>--orn-filigree</code>/<code>--orn-filigree-br</code>) 배경으로 교체하고, 비네트를 네 모서리가 개별적으로 그을린 듯 어두워지도록 강화했다. <b>같은 날 수정</b>: 필리그리를 <code>.parchment-orn::after</code> 배경 레이어 2장(좌상단·우하단)으로만 그리도록 정리했다 — 처음에는 <code>::before</code>/<code>::after</code>를 하나씩 썼는데, <code>::before</code>는 <code>.parchment</code>의 기존 이중 테두리가 이미 쓰고 있어 같은 가상요소를 두 규칙이 절대배치로 동시에 건드리면서 테두리가 깨지는 충돌이 있었음(리뷰에서 확인) — 이중 테두리는 원래 방식(<code>::before</code>, inset 사각형) 그대로 두고 필리그리만 옮겨서 겹치지 않게 했다. 더 정밀한 "찢어진 종이 가장자리"가 필요하면 실제 낡은 종이 테두리 이미지를 추가로 생성해 <code>border-image</code>로 넣는 방법도 있음(선택 사항).</div>
+    <div class="note" style="margin-top:4px"><b>2026-09-07(DEC-121) 신규</b>: <code>quill_parchment_reference.md</code>(Inkulinati 참고, "가운데 접힘선이 살아 있어 실제 책/문서 같은 인상")를 반영해, <b>표지·스크롤·결과지처럼 "펼쳐진 문서"로 보이는 큰 패널</b>에 한해 중앙 접힘선(<code>.foldline</code>)을 추가할 수 있다. 가상요소 충돌을 피하려고(DEC-120 교훈) <code>::before</code>/<code>::after</code>를 더 쓰지 않고 <code>.inkmark</code>와 같은 방식 — 실제 자식 엘리먼트를 패널 안에 직접 넣는다. 작은 카드(<code>.tcard</code>/<code>.charsheet</code>)나 탐색·전투의 fullbleed 배경(DEC-116)에는 쓰지 않는다.</div>
   </section>
 
   <section id="c1" class="sec">
@@ -207,6 +212,19 @@
       </div>
     </div>
     <div class="note">기존 카드 프레임(<code>.figure</code>) 안에 인물을 가두던 방식 대신, 캐릭터를 그 전투의 실제 배경(예: 어두운 통로) 위에 직접 세운다 — 진짜 "그 상황"처럼 보이게. 인물 이미지 가장자리는 <code>mask-image</code>로 페이드시켜 배경과 자연스럽게 섞음(원본이 진짜 투명 PNG가 아니라서 쓰는 임시 처리 — 배경 제거 작업을 하면 불필요해짐). 판정 주사위(C-07)는 버튼 줄에 함께 배치 가능.</div>
+  </section>
+
+  <section id="c12" class="sec">
+    <div class="sec-h"><span class="sec-num">C-12</span><span class="sec-t">깃펜 필기 연출 (Quill Reveal) — 2026-09-07 신규</span><span class="tag">DEC-121 · SCR-006 퀘스트 · SCR-007·008 결과</span></div>
+    <div class="parchment parchment-orn pad" style="max-width:280px;padding:16px 14px;position:relative">
+      <div class="foldline"></div>
+      <div style="font-family:var(--ds-font-display);font-size:12px;font-weight:700;color:#3B3320;margin-bottom:6px;position:relative;z-index:2">던전 탈출</div>
+      <div class="quillwrite" style="font-size:11px;line-height:1.5;color:#5B4E33;position:relative;z-index:2">
+        <span class="qw-text">보스의 방까지 도달해 던전의 주인을 쓰러뜨리세요.</span>
+        <span class="msym qw-pen">edit</span>
+      </div>
+    </div>
+    <div class="note" style="margin-top:8px"><code>quill_parchment_reference.md</code>(Inkulinati 45% · Darkest Dungeon 25% · Scriptorium 30% 블렌드 제안) 중 "페이지 위에 기록이 쓰여진다" 구조를, <b>이미 양피지 카드가 있는 화면(퀘스트·결과)에 한해서만</b> 결합했다 — 화면 전체를 페이지로 바꾸는 재구성은 하지 않았다(그건 이미 확정된 탐색·전투 fullbleed 배경 구성(DEC-116)과 충돌하므로 적용하지 않음). 왼쪽부터 글자가 드러나고 그 끝을 작은 펜촉 아이콘(<code>.qw-pen</code>)이 따라간다(<code>clip-path</code> 애니메이션, SVG 아님 — 순수 텍스트라 <code>.inkmark</code>와 달리 SVG 경로가 필요 없음). 색은 새로 늘리지 않고 기존 잉크브라운(<code>#6B4A1E</code>, <code>.tc-icon</code>/<code>.silhouette</code> 아이콘과 동일 톤)을 재사용 — 선택 표시용 진남색 잉크(<code>.inkmark</code>, DEC-118)와는 "누가 표시했나"가 달라 색으로 구분한다(플레이어가 표시 vs 세계가 기록). 손글씨 폰트로 바꾸지 않고 Pretendard를 그대로 유지한다(07_visual_style.md 타이포그래피 원칙 — 가독성 우선).</div>
   </section>
 
   <section id="exclude" class="sec card pad">
