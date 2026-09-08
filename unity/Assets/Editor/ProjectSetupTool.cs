@@ -302,12 +302,33 @@ namespace TextRPG.EditorTools
             // 이 값은 EnemyPortrait 하나를 여러 적(고블린/던전 수호자 변종 포함)이 공유해서 쓰므로
             // (ExplorePanelController.SetEnemyPortrait()는 sprite만 갈아끼우고 위치는 안 건드림) 이
             // 한 곳만 고치면 모든 적 포트레이트에 동일하게 적용된다.
+            //
+            // 신규(DEC-132): DEC-116(07_visual_style.md)이 요구한 "플레이어와 몬스터가 그 자리에서
+            // 맞붙는 대립 구도"가 지금까지 몬스터 포트레이트만 있고 플레이어 쪽이 아예 없어 실제로는
+            // 구현되지 않은 상태였다(사용자가 빌드 스크린샷으로 확인). anchoredPosition.x를 0(중앙)에서
+            // +280으로 옮겨 화면 오른쪽에 두고, 반대편(-280, 아래 PlayerPortrait)에 플레이어를 같은
+            // 크기(360×460)로 세워 서로 마주보게 했다 — 참조 해상도 1600×1000 기준으로 [100,460]/
+            // [-460,-100] 범위에 각각 들어가 화면 밖으로 벗어나지 않으면서도 중앙에 배경이 보이는
+            // 여백(200유닛)을 남긴다.
             var enemyPortraitRT = CreateAnchored("EnemyPortrait", root, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(360, 460), new Vector2(0, 330));
+                new Vector2(360, 460), new Vector2(280, 330));
             var enemyPortraitImg = enemyPortraitRT.gameObject.AddComponent<Image>();
             enemyPortraitImg.preserveAspect = true;
             enemyPortraitImg.raycastTarget = false;
             enemyPortraitImg.enabled = false;
+
+            // 신규(DEC-132): 전투 중 플레이어 캐릭터 전신 이미지 — EnemyPortrait과 대칭(x=-280)으로 배치해
+            // "대립 구도"를 만든다. 평소(탐색 화면)에는 ExplorePanelController.HidePlayerPortrait()가 꺼둔다.
+            // 인물 이미지 가장자리 마스킹(DEC-116 원문)은 EnemyPortrait에도 아직 구현돼 있지 않아(코드
+            // 전수 확인, 관련 셰이더/머티리얼/마스크 이미지 없음) 이번에도 동일하게 생략했다 — 대립 구도
+            // 배치 자체가 이번 요청의 핵심이고, 원본 배경이 제거된 소스가 아니라는 문서상 전제가 여전히
+            // 유효하므로 완벽한 마스킹은 과설계로 보고 다음 작업으로 남긴다(06_open_questions.md DEC-132).
+            var playerPortraitRT = CreateAnchored("PlayerPortrait", root, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(360, 460), new Vector2(-280, 330));
+            var playerPortraitImg = playerPortraitRT.gameObject.AddComponent<Image>();
+            playerPortraitImg.preserveAspect = true;
+            playerPortraitImg.raycastTarget = false;
+            playerPortraitImg.enabled = false;
 
             var statusLine = CreateText("StatusLine", root, "[라운드 0]", 16, Color.white, TextAlignmentOptions.Left,
                 new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(-24, 30), new Vector2(0, -16));
@@ -366,7 +387,8 @@ namespace TextRPG.EditorTools
                 ("statusOverlayRoot", overlayRoot.gameObject),
                 ("statusOverlayText", overlayText),
                 ("statusOverlayCloseButton", closeBtn),
-                ("enemyPortraitImage", enemyPortraitImg));
+                ("enemyPortraitImage", enemyPortraitImg),
+                ("playerPortraitImage", playerPortraitImg));
 
             // 지역별 배경 스프라이트(SCR-003 가시 의무: "현재 지역을 암시하는 배경 씬 일러스트")
             var so = new SerializedObject(controller);
@@ -404,6 +426,19 @@ namespace TextRPG.EditorTools
                 var element = portraitArtProp.GetArrayElementAtIndex(goblinVariants.Length + i);
                 element.FindPropertyRelative("fileName").stringValue = $"{fileBase}.png";
                 element.FindPropertyRelative("sprite").objectReferenceValue = LoadSprite(fileBase);
+            }
+
+            // 신규(DEC-132): 전투 중 플레이어 전신 이미지 3종(직업별 1장). 직업 선택 화면(BuildClassSelectPanel)의
+            // "_상반신"(흉상 크롭) 대신 전신 이미지를 쓴다 — 대립 구도는 캐릭터 전신이 서 있는 구도가 맞다.
+            var playerPortraitArtProp = so.FindProperty("playerPortraitArt");
+            string[] classIds = { "warrior", "rogue", "mage" };
+            string[] classPortraitFiles = { "char_전사", "char_도적", "char_마법사" };
+            playerPortraitArtProp.arraySize = classIds.Length;
+            for (int i = 0; i < classIds.Length; i++)
+            {
+                var element = playerPortraitArtProp.GetArrayElementAtIndex(i);
+                element.FindPropertyRelative("classId").stringValue = classIds[i];
+                element.FindPropertyRelative("sprite").objectReferenceValue = LoadSprite(classPortraitFiles[i]);
             }
 
             so.ApplyModifiedPropertiesWithoutUndo();

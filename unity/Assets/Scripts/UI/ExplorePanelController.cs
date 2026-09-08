@@ -47,6 +47,18 @@ namespace TextRPG.UI
             public Sprite sprite;
         }
 
+        /// <summary>
+        /// 신규(DEC-132): 전투 중 표시할 플레이어 캐릭터 전신 이미지. classId(warrior/rogue/mage)와
+        /// 정확히 일치하는 항목을 찾아 표시한다 — enemyPortraitArt(파일명 매칭)와 달리 플레이어는
+        /// 전투마다 바뀌지 않는 고정 3종(직업별 1장)이라 classId로 직접 매칭하는 게 더 단순하다.
+        /// </summary>
+        [Serializable]
+        public class ClassPortraitArt
+        {
+            public string classId;
+            public Sprite sprite;
+        }
+
         [SerializeField] private GameBootstrap bootstrap;
         [SerializeField] private Image backgroundImage;
         [SerializeField] private TMP_Text statusLineText;
@@ -59,6 +71,10 @@ namespace TextRPG.UI
         [Header("적 초상화 (OQ-107/DEC-124 — 전투 중에만 표시)")]
         [SerializeField] private Image enemyPortraitImage; // 씬에 연결 안 된 환경(null)에서도 안전하게 동작해야 함
         [SerializeField] private List<PortraitArt> enemyPortraitArt = new List<PortraitArt>();
+
+        [Header("플레이어 초상화 (DEC-132 — 전투 중에만 표시, 대립 구도 반대편)")]
+        [SerializeField] private Image playerPortraitImage; // 씬에 연결 안 된 환경(null)에서도 안전하게 동작해야 함
+        [SerializeField] private List<ClassPortraitArt> playerPortraitArt = new List<ClassPortraitArt>();
 
         [Header("상태 확인 오버레이 (SCR-005/006 최소 버전)")]
         [SerializeField] private GameObject statusOverlayRoot;
@@ -104,6 +120,7 @@ namespace TextRPG.UI
 
             SetBackground(location.Name);
             HideEnemyPortrait(); // 신규(DEC-124): 탐색 화면에서는 적 초상화를 표시하지 않는다.
+            HidePlayerPortrait(); // 신규(DEC-132): 탐색 화면에서는 플레이어 전투 비주얼도 표시하지 않는다.
             statusLineText.text =
                 $"[라운드 {session.GameRound}] {CharacterClassDatabase.Get(session.Player.ClassId)?.DisplayName ?? session.Player.GetName()} " +
                 $"HP {session.Player.GetHp()}/{session.Player.GetMaxHp()} · ATK {session.Player.GetAttack()} · " +
@@ -340,6 +357,9 @@ namespace TextRPG.UI
             SetEnemyPortrait(enemy.PortraitVariants != null && enemy.PortraitVariants.Length > 0
                 ? enemy.PortraitVariants[0]
                 : null);
+            // 신규(DEC-132): 전투 중에는 플레이어 전신 이미지도 반대편(좌측)에 표시해 대립 구도를 만든다
+            // (07_visual_style.md DEC-116 — 이번에 처음 실제 구현됨, 06_open_questions.md DEC-132 참조).
+            SetPlayerPortrait(session.Player.ClassId);
             statusLineText.text = $"--- 전투 {battle.Round}턴 ---";
             titleText.text = $"{session.Player.GetName()} VS {enemy.GetName()}";
             bodyText.text =
@@ -363,7 +383,88 @@ namespace TextRPG.UI
                 CreateButton("4. 마나 회복 (재료 소모)", () => OnBattleAction(4));
             }
 
+            // 신규(DEC-132): 전투 중 "가방" — 사용 가능한 포션이 하나도 없으면 버튼을 비활성화한다
+            // (요구사항의 두 옵션 중 "비활성화" 방식을 택함 — 빈 가방을 열어보는 왕복을 줄이기 위함).
+            CreateButton("5. 가방", OnOpenBattleBag, interactable: session.HasUsablePotion());
+
             CreateButton("2. 도망친다", () => OnBattleAction(2));
+        }
+
+        /// <summary>신규(DEC-132): "가방" 선택 — 인벤토리의 포션 목록을 보여주는 서브 메뉴로 전환한다.</summary>
+        private void OnOpenBattleBag()
+        {
+            RenderBattleBag();
+        }
+
+        /// <summary>
+        /// 신규(DEC-132): 전투 중 가방 서브 메뉴. 포션 사용은 턴을 소모하므로(밸런스 유지), 사용을
+        /// 누르면 곧바로 OnUseBattleItemClicked로 진행하고, "뒤로"를 누르면 턴 소모 없이 원래 전투
+        /// 행동 선택지로 돌아간다(RenderBattle 재호출 — 뒤로가기 자체는 턴이 아니다).
+        /// </summary>
+        private void RenderBattleBag()
+        {
+            var session = bootstrap.Session;
+            var battle = session.CurrentBattle;
+            var enemy = session.CurrentEnemy;
+
+            statusLineText.text = $"--- 전투 {battle.Round}턴 · 가방 ---";
+            titleText.text = "사용할 아이템을 선택하세요";
+            bodyText.text =
+                $"{session.Player.GetName()} HP {session.Player.GetHp()}/{session.Player.GetMaxHp()} · " +
+                $"Mana {session.Player.GetMana()}/{session.Player.GetMaxMana()}\n" +
+                $"{enemy.GetName()} HP {enemy.GetHp()}/{enemy.GetMaxHp()}";
+
+            ClearButtons();
+            bool any = false;
+            for (int i = 0; i < session.Inventory.GetItemCount(); i++)
+            {
+                var item = session.Inventory.GetItem(i);
+                if (item.GetItemType() != ItemType.POTION)
+                {
+                    continue;
+                }
+
+                any = true;
+                int index = i;
+                string effect = item.GetName().Contains("마나") ? $"마나 +{item.GetValue()}" : $"HP +{item.GetValue()}";
+                CreateButton($"{item.GetName()} ({effect})", () => OnUseBattleItemClicked(index));
+            }
+
+            if (!any)
+            {
+                bodyText.text += "\n\n사용할 아이템이 없습니다.";
+            }
+
+            CreateButton("뒤로", () => RenderBattle(""));
+        }
+
+        /// <summary>신규(DEC-132): 가방에서 포션을 골라 사용 — 성공하면 턴이 소모되어 적이 반격한다.</summary>
+        private void OnUseBattleItemClicked(int inventoryIndex)
+        {
+            var session = bootstrap.Session;
+            string itemName = session.Inventory.GetItem(inventoryIndex)?.GetName() ?? "아이템";
+
+            bool used = session.TryUseItemInBattle(inventoryIndex, out var itemResult, out var battleResult);
+            if (!used || itemResult != ItemUseResult.Success)
+            {
+                RenderBattle("사용할 수 없는 아이템입니다.");
+                return;
+            }
+
+            if (!battleResult.HasValue)
+            {
+                RenderBattle($"{itemName}을(를) 사용했다!");
+                return;
+            }
+
+            switch (battleResult.Value)
+            {
+                case BattleResult.PLAYER_WIN:
+                case BattleResult.PLAYER_LOSE:
+                case BattleResult.PLAYER_FLEE:
+                    Refresh();
+                    break;
+            }
         }
 
         private void OnBattleAction(int action)
@@ -466,6 +567,42 @@ namespace TextRPG.UI
             if (enemyPortraitImage != null)
             {
                 enemyPortraitImage.enabled = false;
+            }
+        }
+
+        /// <summary>
+        /// 신규(DEC-132): classId(warrior/rogue/mage)와 정확히 일치하는 playerPortraitArt 항목을
+        /// 찾아 표시한다. SetEnemyPortrait과 동일한 방어 패턴(인프라 부재/매칭 실패 시 조용히 숨김) —
+        /// 초상화 실패가 전투 진행 자체를 막으면 안 된다.
+        /// </summary>
+        private void SetPlayerPortrait(string classId)
+        {
+            if (playerPortraitImage == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(classId))
+            {
+                foreach (var art in playerPortraitArt)
+                {
+                    if (art.classId == classId)
+                    {
+                        playerPortraitImage.sprite = art.sprite;
+                        playerPortraitImage.enabled = art.sprite != null;
+                        return;
+                    }
+                }
+            }
+
+            playerPortraitImage.enabled = false;
+        }
+
+        private void HidePlayerPortrait()
+        {
+            if (playerPortraitImage != null)
+            {
+                playerPortraitImage.enabled = false;
             }
         }
 

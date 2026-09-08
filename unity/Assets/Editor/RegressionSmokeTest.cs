@@ -88,6 +88,18 @@ namespace TextRPG.EditorTools
             passed += Check("DEC-129 Major 수정: 낡은 무기고 '장비를 챙긴다'(ATK+4)가 이후 무기 교체 후에도 사라지면 안 됨",
                 TestArmoryAttackBonusSurvivesWeaponSwap);
 
+            // 신규(DEC-132): 전투 중 "가방"(포션 사용) — 턴 소모 + HP/마나 회복 + 빈 인벤토리 처리
+            passed += Check("DEC-132: BattleSystem.ActionUseItem은 플레이어 공격 없이 적만 반격시켜 턴을 소모해야 함",
+                TestBattleSystemActionUseItemConsumesTurnWithoutPlayerAttack);
+            passed += Check("DEC-132: GameSession.HasUsablePotion은 포션 보유 여부를 정확히 반영해야 함",
+                TestHasUsablePotionReflectsInventoryState);
+            passed += Check("DEC-132: 전투 중 가방에서 포션 사용 시 HP가 회복되고 아이템이 소모되며 턴이 적에게 넘어가야 함",
+                TestTryUseItemInBattleRestoresHpAndConsumesTurn);
+            passed += Check("DEC-132: 전투 중이 아닐 때 TryUseItemInBattle 호출은 실패하고 아무 효과도 없어야 함",
+                TestTryUseItemInBattleFailsOutsideBattle);
+            passed += Check("DEC-132: 포션이 아닌 아이템(무기)으로 가방 사용을 시도하면 실패하고 턴도 소모되면 안 됨",
+                TestTryUseItemInBattleFailsForNonPotionItem);
+
             Debug.Log($"[RegressionSmokeTest] ALL PASSED ({passed} checks)");
         }
 
@@ -1153,6 +1165,118 @@ namespace TextRPG.EditorTools
             Assert(session.Player.GetAttack() == expectedAtk,
                 $"무기 교체 후에도 무기고에서 얻은 ATK+4 보너스가 유지된 채 {expectedAtk}여야 하는데 {session.Player.GetAttack()}" +
                 "(만약 17이 아니라 16이 나온다면 +4 보너스가 증발한 것 — 바로 그 버그)");
+        }
+
+        // ───────────────────────── 신규(DEC-132) 회귀 테스트: 전투 중 "가방"(포션 사용) ─────────────────────────
+
+        /// <summary>
+        /// BattleSystem.TakeTurn(ActionUseItem) 자체는 HP/마나 회복을 하지 않는다(호출부인 GameSession이
+        /// 이미 끝내둔다는 전제) — 이 테스트는 "플레이어가 공격하지 않고(적 HP 불변), 적만 반격해
+        /// 정확한 데미지 공식(ATK+Random(0,2), 방어력 적용)대로 플레이어 HP가 줄어드는지"만 순수하게 검증한다.
+        /// </summary>
+        private static void TestBattleSystemActionUseItemConsumesTurnWithoutPlayerAttack()
+        {
+            var player = new Player("테스트"); // 기본 방어력 3
+            var enemy = new Enemy("고블린", 30, 7, 1, 60, 25); // ATK7, 반격 데미지 원시값 7~9
+            var battle = new BattleSystem(player, enemy);
+
+            int enemyHpBefore = enemy.GetHp();
+            int playerHpBefore = player.GetHp();
+            int roundBefore = battle.Round;
+
+            var result = battle.TakeTurn(BattleSystem.ActionUseItem);
+
+            Assert(battle.Round == roundBefore + 1, "ActionUseItem도 한 라운드로 취급되어 Round가 1 증가해야 함");
+            Assert(enemy.GetHp() == enemyHpBefore, "ActionUseItem은 플레이어 공격이 아니므로 적 HP는 전혀 줄지 않아야 함");
+
+            int dealt = playerHpBefore - player.GetHp();
+            Assert(dealt >= 4 && dealt <= 6, $"적 반격 데미지(ATK7+Random(0,2)-방어3)는 4~6 범위여야 하는데 {dealt}");
+            Assert(result == null, "이 시나리오(적 HP99999 아님, 플레이어도 안 죽음)에서는 전투가 계속되어야 함");
+        }
+
+        private static void TestHasUsablePotionReflectsInventoryState()
+        {
+            var session = NewWarriorSession();
+            Assert(session.HasUsablePotion(), "전사 시작 인벤토리(장검+회복 물약)에는 포션이 있어야 함");
+
+            int potionIndex = FindItemIndexByName(session, "회복 물약");
+            Assert(potionIndex >= 0, "시작 회복 물약을 찾을 수 없음");
+            session.UseItem(potionIndex);
+
+            Assert(!session.HasUsablePotion(), "유일한 포션을 사용한 뒤에는 더 이상 사용 가능한 포션이 없어야 함(남은 것은 무기뿐)");
+        }
+
+        /// <summary>
+        /// 신규(DEC-132) 핵심 시나리오: 전투 중 "가방"에서 회복 물약을 사용하면 ① HP가 즉시 회복되고
+        /// ② 아이템이 인벤토리에서 소모되며 ③ 곧바로 적의 반격으로 턴이 넘어가야 한다(밸런스 유지 —
+        /// 공짜로 회복만 하고 턴을 아끼면 안 됨). 전사 DEF=5, 고블린 4변종 중 최댓값(ATK10+Random(0,2)=최대12,
+        /// 12-5=7)이 나와도 회복량(30)보다 훨씬 작으므로, HP를 미리 5로 낮춰두면 결과 HP가 항상
+        /// (5+30-7)=28 이상, (5+30-1)=34 이하 범위에 안전하게 들어와 랜덤 변종과 무관하게 결정적으로 검증 가능하다.
+        /// </summary>
+        private static void TestTryUseItemInBattleRestoresHpAndConsumesTurn()
+        {
+            var session = NewWarriorSession();
+            session.ChooseLocationAction(1); // 던전 입구 -> 갈림길
+            session.ChooseLocationAction(2); // 오른쪽 통로 -> 어두운 통로, 고블린과 자동 전투
+            Assert(session.CurrentState == GameState.BATTLE, "고블린과 전투가 시작되어야 함");
+
+            session.Player.SetHp(5);
+            int potionIndex = FindItemIndexByName(session, "회복 물약");
+            Assert(potionIndex >= 0, "시작 회복 물약을 찾을 수 없음");
+            int itemCountBefore = session.Inventory.GetItemCount();
+            int roundBefore = session.CurrentBattle.Round;
+
+            bool used = session.TryUseItemInBattle(potionIndex, out var itemResult, out var battleResult);
+
+            Assert(used, "전투 중 포션 사용은 성공해야 함");
+            Assert(itemResult == ItemUseResult.Success, $"itemResult는 Success여야 하는데 {itemResult}");
+            Assert(session.Inventory.GetItemCount() == itemCountBefore - 1, "사용한 포션은 인벤토리에서 소모되어야 함");
+            Assert(session.CurrentBattle != null && session.CurrentBattle.Round == roundBefore + 1,
+                "포션 사용도 한 턴으로 취급되어 Round가 1 증가해야 함(밸런스 유지 — 턴 소모)");
+            Assert(!battleResult.HasValue, "이 시나리오에서는 전투가 끝나지 않고 계속되어야 함(HP 여유 계산 참조)");
+            Assert(session.Player.GetHp() >= 28 && session.Player.GetHp() <= 34,
+                $"HP는 5+30(회복)-{{1~7}}(적 반격)=28~34 범위여야 하는데 {session.Player.GetHp()}(회복은 됐는데 턴이 소모 안 됐거나 반대일 수 있음)");
+        }
+
+        /// <summary>전투 중이 아닐 때(CurrentBattle==null) 호출하면 아무 효과 없이 실패해야 한다(방어적 처리).</summary>
+        private static void TestTryUseItemInBattleFailsOutsideBattle()
+        {
+            var session = NewWarriorSession(); // 아직 PLAYING(탐색), 전투 아님
+            int potionIndex = FindItemIndexByName(session, "회복 물약");
+            int itemCountBefore = session.Inventory.GetItemCount();
+            int hpBefore = session.Player.GetHp();
+
+            bool used = session.TryUseItemInBattle(potionIndex, out var itemResult, out var battleResult);
+
+            Assert(!used, "전투 중이 아니면 TryUseItemInBattle은 실패해야 함");
+            Assert(!battleResult.HasValue, "전투 중이 아니므로 battleResult는 null이어야 함");
+            Assert(session.Inventory.GetItemCount() == itemCountBefore, "실패한 시도는 인벤토리를 건드리면 안 됨");
+            Assert(session.Player.GetHp() == hpBefore, "실패한 시도는 HP도 건드리면 안 됨");
+        }
+
+        /// <summary>
+        /// 재료("마나 결정")나 무기/방어구처럼 POTION이 아닌 아이템으로 가방 사용을 시도하면 기존
+        /// UseItem의 NotUsable 분기를 그대로 타야 하고, 실패했으므로 턴도 소모되면 안 된다(중복 방지 —
+        /// 재료는 이미 전투 중 "마나 회복" 선택지로 별도 노출되므로 가방 메뉴 UI에는 안 보이지만,
+        /// 방어 로직 자체는 잘못된 인덱스가 들어와도 안전해야 한다).
+        /// </summary>
+        private static void TestTryUseItemInBattleFailsForNonPotionItem()
+        {
+            var session = NewWarriorSession();
+            session.ChooseLocationAction(1); // 던전 입구 -> 갈림길
+            session.ChooseLocationAction(2); // 오른쪽 통로 -> 어두운 통로, 고블린과 자동 전투
+            Assert(session.CurrentState == GameState.BATTLE, "고블린과 전투가 시작되어야 함");
+
+            int weaponIndex = FindItemIndexByName(session, "장검");
+            Assert(weaponIndex >= 0, "전사 시작 무기(장검)를 찾을 수 없음");
+            int roundBefore = session.CurrentBattle.Round;
+
+            bool used = session.TryUseItemInBattle(weaponIndex, out var itemResult, out var battleResult);
+
+            Assert(!used, "무기로 가방 사용을 시도하면 실패해야 함");
+            Assert(itemResult == ItemUseResult.NotUsable, $"itemResult는 NotUsable이어야 하는데 {itemResult}");
+            Assert(!battleResult.HasValue, "실패했으므로 battleResult는 null이어야 함");
+            Assert(session.CurrentBattle.Round == roundBefore, "실패한 시도는 턴을 소모하면 안 됨(Round 불변)");
         }
     }
 }

@@ -598,6 +598,53 @@ namespace TextRPG.GameLogic
             return true;
         }
 
+        /// <summary>신규(DEC-132): 인벤토리에 사용 가능한 포션(HP/마나 물약)이 하나라도 있는지 —
+        /// UI가 전투 중 "가방" 선택지를 비활성화할지 판단하는 용도.</summary>
+        public bool HasUsablePotion()
+        {
+            if (Inventory == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < Inventory.GetItemCount(); i++)
+            {
+                if (Inventory.GetItem(i).GetItemType() == ItemType.POTION)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 신규(DEC-132): 전투 중 "가방"에서 포션을 사용한다. 아이템 종류 검증·회복·소모는 기존
+        /// UseItem(POTION만 허용, 재료/무기/방어구는 NotUsable)을 그대로 재사용해 로직을 중복하지
+        /// 않는다 — 이 메서드는 그 위에 "전투 중이어야 하고, 성공했다면 턴을 소모시킨다"만 얹는다.
+        /// 반환값 false는 "턴 자체가 진행되지 않음"을 뜻한다(전투 중이 아니거나 아이템 사용 실패) —
+        /// 호출부(UI)가 이 경우 안내만 하고 그대로 같은 화면에 머물러야 한다.
+        /// </summary>
+        public bool TryUseItemInBattle(int inventoryIndex, out ItemUseResult itemResult, out BattleResult? battleResult)
+        {
+            battleResult = null;
+
+            if (CurrentBattle == null)
+            {
+                itemResult = ItemUseResult.NotUsable;
+                return false;
+            }
+
+            itemResult = UseItem(inventoryIndex);
+            if (itemResult != ItemUseResult.Success)
+            {
+                return false;
+            }
+
+            battleResult = ProcessBattleTurn(BattleSystem.ActionUseItem);
+            return true;
+        }
+
         // ───────────────────────── 신규(DEC-129): 장비(무기/방어구) 장착·구매·상자 획득 ─────────────────────────
 
         /// <summary>

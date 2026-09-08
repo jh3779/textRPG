@@ -10,7 +10,8 @@
  * 눌러 클릭해 보는 것"에 가장 가까운 자동화 대체재다.
  *
  * 과설계 금지: 모든 화면·모든 버튼을 다 검증하지 않는다. 핵심 화면 전환(타이틀→직업선택→
- * 탐색→전투)과 대표적인 버튼 클릭 1개 이상씩만 확인한다(테스트 A~F).
+ * 탐색→전투)과 대표적인 버튼 클릭 1개 이상씩만 확인한다(테스트 A~F, 이후 발견된 버그·신규 기능에
+ * 대응해 G~M까지 추가됨 — DEC-132: K~M은 전투 플레이어 초상화·"가방" 아이템 사용).
  *
  * 실행: Unity -batchmode -nographics -runTests -testPlatform PlayMode
  *   -testResults <결과경로>.xml -projectPath unity
@@ -760,6 +761,170 @@ namespace TextRPG.Tests.PlayMode
 
             classSelectController.transform.Find("ConfirmButton").GetComponent<Button>().onClick.Invoke();
             yield return null;
+        }
+
+        /// <summary>테스트 K/L/M 공용 준비 단계: 던전 입구(0) → 갈림길(1) → 오른쪽 통로(고블린 즉시 조우)까지 진행한다.</summary>
+        private static IEnumerator EnterGoblinBattle(ExplorePanelController exploreController)
+        {
+            var buttonRow = exploreController.transform.Find("ButtonRow");
+            FindButtonByLabelPrefix(buttonRow, "1.").onClick.Invoke();
+            yield return null;
+            FindButtonByLabelPrefix(buttonRow, "2.").onClick.Invoke();
+            yield return null;
+        }
+
+        // ----------------------------------------------------------------
+        // 테스트 K: 전투 진입 시 플레이어 캐릭터 전신 이미지가 실제로 표시되고(대립 구도, DEC-116/132),
+        // 탐색 화면에서는 표시되지 않는지 검증
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator K_GoblinBattle_PlayerPortraitRendersWithCorrectClassSprite()
+        {
+            bool hadExisting = false;
+            string backup = null;
+            try
+            {
+                backup = BackupSaveFileIfExists(out hadExisting);
+                DeleteSaveFileIfExists();
+
+                yield return LoadMainScene();
+                yield return SelectWarriorAndConfirm();
+
+                var bootstrap = FindBootstrap();
+                var exploreController = FindController<ExplorePanelController>();
+
+                // 탐색 화면(전투 진입 전)에는 플레이어 전투 비주얼이 보이면 안 된다.
+                var playerPortraitImage = exploreController.transform.Find("PlayerPortrait").GetComponent<Image>();
+                Assert.IsFalse(playerPortraitImage.enabled, "탐색 화면에서는 PlayerPortrait이 비활성 상태여야 합니다.");
+
+                yield return EnterGoblinBattle(exploreController);
+                Assert.AreEqual(GameState.BATTLE, bootstrap.Session.CurrentState, "고블린과 즉시 전투가 시작되어야 합니다.");
+
+                Assert.IsTrue(playerPortraitImage.enabled, "전투 중에는 PlayerPortrait Image가 활성화되어야 합니다(DEC-132 대립 구도).");
+                Assert.IsNotNull(playerPortraitImage.sprite,
+                    $"플레이어 클래스({bootstrap.Session.Player.ClassId})에 대응하는 스프라이트가 할당되어 있어야 합니다.");
+
+                // 대립 구도: 몬스터(EnemyPortrait, +x)와 플레이어(PlayerPortrait, -x)가 서로 반대편에 있어야 한다.
+                var enemyPortraitRT = exploreController.transform.Find("EnemyPortrait").GetComponent<RectTransform>();
+                var playerPortraitRT = playerPortraitImage.GetComponent<RectTransform>();
+                Assert.Greater(enemyPortraitRT.anchoredPosition.x, 0f, "몬스터 포트레이트는 화면 오른쪽(양수 x)에 있어야 합니다.");
+                Assert.Less(playerPortraitRT.anchoredPosition.x, 0f, "플레이어 포트레이트는 화면 왼쪽(음수 x, 몬스터의 반대편)에 있어야 합니다.");
+            }
+            finally
+            {
+                RestoreSaveFile(hadExisting, backup);
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 테스트 L: 전투 중 "가방"에서 포션을 사용하면 실제로 HP가 회복되고, 아이템이 소모되며,
+        // 턴이 적에게 넘어가는지(밸런스 유지, DEC-132) 버튼 클릭으로 검증
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator L_BattleBag_UsePotion_RestoresHpAndConsumesTurn()
+        {
+            bool hadExisting = false;
+            string backup = null;
+            try
+            {
+                backup = BackupSaveFileIfExists(out hadExisting);
+                DeleteSaveFileIfExists();
+
+                yield return LoadMainScene();
+                yield return SelectWarriorAndConfirm();
+
+                var bootstrap = FindBootstrap();
+                var exploreController = FindController<ExplorePanelController>();
+                yield return EnterGoblinBattle(exploreController);
+                Assert.AreEqual(GameState.BATTLE, bootstrap.Session.CurrentState);
+
+                // 전사 DEF=5, 고블린 4변종 중 최댓값(ATK10+Random(0,2)=최대12, 12-5=7)이 나와도 회복량(30)보다
+                // 훨씬 작으므로, HP를 미리 5로 낮춰두면 결과 HP가 (5+30-7)=28 이상 (5+30-1)=34 이하 범위에
+                // 항상 들어와 랜덤 변종과 무관하게 결정적으로 검증 가능하다(RegressionSmokeTest의 동일 근거 재사용).
+                bootstrap.Session.Player.SetHp(5);
+                int itemCountBefore = bootstrap.Session.Inventory.GetItemCount();
+                int roundBefore = bootstrap.Session.CurrentBattle.Round;
+
+                var buttonRow = exploreController.transform.Find("ButtonRow");
+                var bagButton = FindButtonByLabelPrefix(buttonRow, "5. 가방");
+                Assert.IsNotNull(bagButton, "'5. 가방' 버튼을 찾을 수 없습니다.");
+                Assert.IsTrue(bagButton.interactable, "회복 물약을 갖고 있으므로 가방 버튼은 활성화되어 있어야 합니다.");
+
+                bagButton.onClick.Invoke();
+                yield return null;
+
+                var potionButton = FindButtonByLabelPrefix(buttonRow, "회복 물약");
+                Assert.IsNotNull(potionButton, "가방을 열면 '회복 물약' 사용 버튼이 보여야 합니다.");
+
+                potionButton.onClick.Invoke();
+                yield return null;
+
+                Assert.AreEqual(itemCountBefore - 1, bootstrap.Session.Inventory.GetItemCount(),
+                    "사용한 포션은 인벤토리에서 소모되어야 합니다.");
+                Assert.AreEqual(GameState.BATTLE, bootstrap.Session.CurrentState, "이 시나리오에서는 전투가 계속되어야 합니다.");
+                Assert.AreEqual(roundBefore + 1, bootstrap.Session.CurrentBattle.Round,
+                    "포션 사용도 한 턴으로 취급되어 Round가 1 증가해야 합니다(밸런스 유지 — 턴 소모).");
+                Assert.GreaterOrEqual(bootstrap.Session.Player.GetHp(), 28);
+                Assert.LessOrEqual(bootstrap.Session.Player.GetHp(), 34);
+
+                // 아이템 사용 후에는 가방 서브 메뉴가 아니라 원래 전투 행동 선택지로 돌아와 있어야 한다.
+                Assert.IsNotNull(FindButtonByLabelPrefix(buttonRow, "1. 일반 공격"),
+                    "포션 사용 후에는 다시 전투 행동 선택지('1. 일반 공격')로 돌아와야 합니다.");
+                Assert.IsNull(FindButtonByLabelPrefix(buttonRow, "뒤로"),
+                    "포션 사용 후에는 가방 서브 메뉴('뒤로' 버튼)가 닫혀 있어야 합니다.");
+            }
+            finally
+            {
+                RestoreSaveFile(hadExisting, backup);
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 테스트 M: 사용 가능한 포션이 없으면 "가방" 선택지가 비활성화되는지(DEC-132) 검증
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator M_BattleBag_NoPotions_DisablesBagOption()
+        {
+            bool hadExisting = false;
+            string backup = null;
+            try
+            {
+                backup = BackupSaveFileIfExists(out hadExisting);
+                DeleteSaveFileIfExists();
+
+                yield return LoadMainScene();
+                yield return SelectWarriorAndConfirm();
+
+                var bootstrap = FindBootstrap();
+                var exploreController = FindController<ExplorePanelController>();
+
+                // 전투 진입 전(탐색 화면)에 시작 포션("회복 물약")을 직접 소모시켜 가방을 비운다.
+                var inventory = bootstrap.Session.Inventory;
+                int potionIndex = -1;
+                for (int i = 0; i < inventory.GetItemCount(); i++)
+                {
+                    if (inventory.GetItem(i).GetItemType() == ItemType.POTION)
+                    {
+                        potionIndex = i;
+                        break;
+                    }
+                }
+                Assert.GreaterOrEqual(potionIndex, 0, "시작 인벤토리에 포션(회복 물약)이 있어야 합니다.");
+                bootstrap.Session.UseItem(potionIndex);
+                Assert.IsFalse(bootstrap.Session.HasUsablePotion(), "유일한 포션을 사용한 뒤에는 사용 가능한 포션이 없어야 합니다.");
+
+                yield return EnterGoblinBattle(exploreController);
+                Assert.AreEqual(GameState.BATTLE, bootstrap.Session.CurrentState);
+
+                var buttonRow = exploreController.transform.Find("ButtonRow");
+                var bagButton = FindButtonByLabelPrefix(buttonRow, "5. 가방");
+                Assert.IsNotNull(bagButton, "포션이 없어도 '5. 가방' 버튼 자체는 보여야 합니다(비활성화 방식).");
+                Assert.IsFalse(bagButton.interactable, "사용 가능한 포션이 없으면 가방 버튼은 비활성화되어야 합니다.");
+            }
+            finally
+            {
+                RestoreSaveFile(hadExisting, backup);
+            }
         }
     }
 }

@@ -29,6 +29,12 @@
  *   GameSession이 재료를 먼저 확인·소모한 뒤에만 이 액션을 호출해야 한다(BattleSystem은 Inventory를
  *   모르므로 여기서는 마나 회복량 계산만 담당). 공격이 아닌 턴이므로 선공 판정 없이 항상 적이 반격한다
  *   (도망 실패 분기와 동일한 취급).
+ *
+ * 2026-09-08 확장(DEC-132, Unity 한정): playerAction에 5(전투 중 "가방"에서 포션 사용) 추가.
+ *   마나 회복(action=4)과 마찬가지로 BattleSystem은 Inventory/Item을 모르므로, 실제 HP/마나 회복과
+ *   아이템 소모는 호출부(GameSession.TryUseItemInBattle, 기존 GameSession.UseItem 재사용)가 이 메서드를
+ *   호출하기 전에 이미 끝내둔다 — 여기서는 "턴을 소모시키는 것"(공격 행동이 아니므로 선공 판정 없이
+ *   항상 적이 반격)만 담당한다. 밸런스 요구사항(아이템 사용도 턴을 소모해야 함)을 지키기 위한 최소 구현.
  */
 
 using System;
@@ -41,6 +47,9 @@ namespace TextRPG.GameLogic
         public const int ActionFlee = 2;
         public const int ActionManaSkill = 3;
         public const int ActionRecoverMana = 4;
+
+        /// <summary>신규(DEC-132): 전투 중 "가방"에서 포션을 사용하는 행동. 효과 적용은 GameSession이 담당.</summary>
+        public const int ActionUseItem = 5;
 
         /// <summary>신규(DEC-123): "마나 회복" 행동 1회로 회복되는 비율(최대 마나 대비). 40~50% 범위 내에서 45%로 결정.</summary>
         private const double ManaRecoveryRestoreRatio = 0.45;
@@ -99,6 +108,12 @@ namespace TextRPG.GameLogic
                 // 공격 행동이 아니므로 선공 판정 없이 항상 적이 반격한다(도망 실패와 동일한 취급).
                 int recovered = (int)Math.Round(player.GetMaxMana() * ManaRecoveryRestoreRatio);
                 player.RecoverMana(Math.Max(1, recovered));
+                EnemyAttack();
+            }
+            else if (playerAction == ActionUseItem)
+            {
+                // 신규(DEC-132): 아이템(포션) 효과는 호출부(GameSession)가 이미 적용했다 — 여기서는
+                // 공격 행동이 아니므로 선공 판정 없이 턴만 소모시킨다(마나 회복과 동일한 취급).
                 EnemyAttack();
             }
             else
