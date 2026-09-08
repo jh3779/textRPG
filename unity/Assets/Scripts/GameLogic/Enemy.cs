@@ -3,7 +3,11 @@
  *
  * 📝 역할: include/Enemy.h + src/Enemy.cpp 그대로 포팅.
  * 신규(콘솔에는 없던 것): portraitVariants — 04_data_model.md ENT-103 아트 변형(DEC-114).
- * 스탯에는 영향 없음(OQ-107 미결정 — ASM-104 가정대로 시각만 다름).
+ * 2026-09-08 갱신(DEC-124, OQ-107 해결): 이 필드 자체는 스탯과 무관한 "표시용 초상화 파일명"일 뿐이지만,
+ * 몬스터별로 스탯과의 관계가 다르다 — 던전 수호자는 여전히 시각만 다르고 스탯은 무관하게 고정(DEC-114 유지,
+ * OQ-108 범위 밖). 반면 고블린은 DEC-124로 변종별 스탯이 서로 다르며, 이 필드가 그 스탯 선택과 함께
+ * 확정된 결과(단일 파일명 1개)를 담을 뿐 — 즉 "이 필드 자체가 스탯을 바꾸지는 않는다"는 여전히 사실이지만,
+ * 옛 ASM-104 가정("고블린도 그림만 다름")은 더 이상 유효하지 않다(GameSession.StartBattleWithGoblin 참조).
  */
 
 using System;
@@ -20,7 +24,13 @@ namespace TextRPG.GameLogic
         private readonly int experienceReward;
         private readonly int goldReward;
 
-        /// <summary>신규(DEC-114): 전투 시작 시 무작위로 고를 수 있는 초상화 후보 목록. 스탯과 무관.</summary>
+        /// <summary>
+        /// 신규(DEC-114): 전투 시작 시 표시할 초상화 파일명. 던전 수호자는 시각만 다르고 스탯은 균형형으로
+        /// 고정된 채 이 배열은 항상 그 1장(`enemy_던전수호자.png`)만 담는다(DEC-114 유지, 스탯과 무관).
+        /// 2026-09-08 갱신(DEC-124, OQ-107 해결): 고블린은 더 이상 그림만 다른 게 아니라 변종별로 스탯도
+        /// 다르다 — 이 배열은 4개 후보 "풀"이 아니라 GameSession.StartBattleWithGoblin()이 스탯 선택을
+        /// 마친 뒤 그 변종에 대응하는 단일 확정 포트레이트 1개만 담는다(필드 자체가 스탯을 바꾸지는 않음).
+        /// </summary>
         public string[] PortraitVariants { get; set; } = Array.Empty<string>();
 
         /// <summary>

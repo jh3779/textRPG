@@ -280,6 +280,16 @@ namespace TextRPG.EditorTools
             scrim.color = UIColors.ScrimBottom;
             scrim.raycastTarget = false;
 
+            // 신규(OQ-107 해결, DEC-124): 전투 중 적 초상화. 배경(Background)보다 위, 텍스트바/버튼보다는
+            // 아래에 두어 대립 구도(VersusStage, C-11)의 최소 버전 역할만 한다 — 카드 프레임 등 고급
+            // 비주얼은 이번 범위 밖. 평소(탐색 화면)에는 ExplorePanelController.HideEnemyPortrait()가 꺼둔다.
+            var enemyPortraitRT = CreateAnchored("EnemyPortrait", root, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(360, 460), new Vector2(0, 150));
+            var enemyPortraitImg = enemyPortraitRT.gameObject.AddComponent<Image>();
+            enemyPortraitImg.preserveAspect = true;
+            enemyPortraitImg.raycastTarget = false;
+            enemyPortraitImg.enabled = false;
+
             var statusLine = CreateText("StatusLine", root, "[라운드 0]", 16, Color.white, TextAlignmentOptions.Left,
                 new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(-24, 30), new Vector2(0, -16));
 
@@ -336,7 +346,8 @@ namespace TextRPG.EditorTools
                 ("buttonTemplate", buttonTemplate),
                 ("statusOverlayRoot", overlayRoot.gameObject),
                 ("statusOverlayText", overlayText),
-                ("statusOverlayCloseButton", closeBtn));
+                ("statusOverlayCloseButton", closeBtn),
+                ("enemyPortraitImage", enemyPortraitImg));
 
             // 지역별 배경 스프라이트(SCR-003 가시 의무: "현재 지역을 암시하는 배경 씬 일러스트")
             var so = new SerializedObject(controller);
@@ -350,6 +361,22 @@ namespace TextRPG.EditorTools
                 element.FindPropertyRelative("locationName").stringValue = names[i];
                 element.FindPropertyRelative("sprite").objectReferenceValue = LoadSprite(files[i]);
             }
+
+            // 신규(OQ-107 해결, DEC-124): 고블린 4개 변종 초상화. fileName은 GameSession이 전투 시작 시
+            // Enemy.PortraitVariants[0]에 넣는 문자열(확장자 .png 포함)과 정확히 일치해야 한다.
+            // 던전 수호자(enemy_던전수호자.png)는 이번 작업 범위(OQ-108 별도)가 아니므로 여기서는
+            // 연결하지 않는다 — 매칭되는 항목이 없으면 SetEnemyPortrait()가 조용히 숨긴다(기존 동작 유지).
+            var portraitArtProp = so.FindProperty("enemyPortraitArt");
+            string[] goblinVariants = { "약소형", "날렵형", "거대형", "주술사형" };
+            portraitArtProp.arraySize = goblinVariants.Length;
+            for (int i = 0; i < goblinVariants.Length; i++)
+            {
+                string fileBase = $"enemy_고블린_{goblinVariants[i]}";
+                var element = portraitArtProp.GetArrayElementAtIndex(i);
+                element.FindPropertyRelative("fileName").stringValue = $"{fileBase}.png";
+                element.FindPropertyRelative("sprite").objectReferenceValue = LoadSprite(fileBase);
+            }
+
             so.ApplyModifiedPropertiesWithoutUndo();
 
             return controller;

@@ -231,16 +231,35 @@ namespace TextRPG.GameLogic
             return LocationActionResult.SaveAndQuit;
         }
 
+        /// <summary>
+        /// OQ-107 해결(DEC-124): 고블린 4개 시각 변종(DEC-114)은 그림만 다른 게 아니라 스탯도 다른
+        /// 별개의 적이다(ASM-104 가정 폐기). EXP/골드 보상(60/25)은 이번 범위에서 4종 모두 원본
+        /// (src/Game.cpp: Enemy goblin("고블린", 30, 7, 1, 60, 25))과 동일하게 유지한다 — 보상 밸런스까지
+        /// 새로 설계하는 것은 과설계이므로 스탯(HP/ATK/DEF/공격속도)만 변종별로 분리했다.
+        /// 정확한 수치·근거는 06_open_questions.md DEC-124 참조.
+        /// </summary>
+        private static readonly (string Variant, int Hp, int Atk, int Def, int AttackSpeed)[] GoblinVariants =
+        {
+            ("약소형", 20, 5, 0, 0),   // 가장 약한 잡몹
+            ("날렵형", 25, 7, 1, 2),   // 빠르지만 얇음(공격속도 우위로 선공 확률 ↑)
+            ("거대형", 45, 9, 3, -1),  // 느리지만 단단하고 세게 침
+            ("주술사형", 25, 10, 0, 0), // 방어 포기하고 화력에 올인
+        };
+
         private void StartBattleWithGoblin()
         {
-            // src/Game.cpp: Enemy goblin("고블린", 30, 7, 1, 60, 25);
-            CurrentEnemy = new Enemy("고블린", 30, 7, 1, 60, 25)
+            // 신규(DEC-124): 조우할 때마다(이 게임은 지역당 고블린 조우가 1회뿐이라 사실상 이번 회차
+            // 유일한 고블린 전투 시) 4개 변종 중 하나를 무작위로 고른다. BattleSystem의 강타 스킬 등에서
+            // 이미 쓰는 Utils.GenerateRandomNumber를 그대로 재사용한다(inclusive 범위).
+            int variantIndex = Utils.GenerateRandomNumber(0, GoblinVariants.Length - 1);
+            var variant = GoblinVariants[variantIndex];
+
+            CurrentEnemy = new Enemy("고블린", variant.Hp, variant.Atk, variant.Def, 60, 25)
             {
-                PortraitVariants = new[]
-                {
-                    "enemy_고블린_약소형.png", "enemy_고블린_날렵형.png",
-                    "enemy_고블린_거대형.png", "enemy_고블린_주술사형.png"
-                }
+                AttackSpeed = variant.AttackSpeed,
+                // DEC-124: 더 이상 4개 후보를 담은 "풀"이 아니라, 이미 선택이 끝난 변종에 대응하는
+                // 단일 확정 포트레이트 1개만 담는다(던전 수호자가 이미 쓰던 단일 확정 관례와 동일 패턴).
+                PortraitVariants = new[] { $"enemy_고블린_{variant.Variant}.png" }
             };
             CurrentBattle = new BattleSystem(Player, CurrentEnemy);
             CurrentState = GameState.BATTLE;

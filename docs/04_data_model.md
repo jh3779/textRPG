@@ -40,7 +40,18 @@
 ### ENT-103 · Enemy, ENT-104 · Location, ENT-105 · Item, ENT-106 · Quest
 기존 웹 버전 기획(구 문서)과 동일 — 콘솔 버전의 `Enemy`/`Map::Location`/`Item`/`Quest` 필드를 그대로 사용. 필드 정의는 각 C++ 헤더(`include/Enemy.h`, `include/Map.h`, `include/Item.h`, `include/Quest.h`) 참조.
 
-**아트 변형 (2026-09-04 추가, DEC-114):** `Enemy`에 `portraitVariants: string[]`를 하나 추가 — 고블린은 `art-assets/enemy_고블린_{약소형|날렵형|거대형|주술사형}.png` 4장 중 전투 시작 시 무작위 1장을 고른다(스탯은 그대로 하나, OQ-107 미결정). 던전 수호자는 `art-assets/enemy_던전수호자.png`(균형형) 고정 1장만 사용 — 나머지 3변종은 데이터 모델에 아직 연결하지 않음(OQ-108).
+**아트 변형 (2026-09-04 추가, DEC-114):** `Enemy`에 `portraitVariants: string[]`를 하나 추가. 던전 수호자는 `art-assets/enemy_던전수호자.png`(균형형) 고정 1장만 사용 — 나머지 3변종은 데이터 모델에 아직 연결하지 않음(OQ-108).
+
+**2026-09-08 갱신(DEC-124, OQ-107 해결): 고블린은 4개 시각 변종이 스탯도 다른 별개의 적이다.** 기존 "그림만 다름"(ASM-104) 가정은 폐기됐다. `GameSession.StartBattleWithGoblin()`이 조우 시점에 4개 중 하나를 무작위로 골라 아래 스탯 + 해당 변종 전용 포트레이트로 `Enemy`를 생성한다. `portraitVariants`는 더 이상 4개 후보를 담은 풀이 아니라, 선택이 끝난 뒤 그 변종에 대응하는 **단일 확정 포트레이트 1개**만 담는다(던전 수호자와 동일한 "단일 확정" 표현 방식).
+
+| 변종 | HP | ATK | DEF | 공격속도(`Enemy.AttackSpeed`, DEC-123) | 포트레이트 | 컨셉 |
+|---|---|---|---|---|---|---|
+| 약소형 | 20 | 5 | 0 | 0 | `enemy_고블린_약소형.png` | 가장 약한 잡몹 |
+| 날렵형 | 25 | 7 | 1 | +2 | `enemy_고블린_날렵형.png` | 빠르지만 얇음(선공 확률 ↑) |
+| 거대형 | 45 | 9 | 3 | -1 | `enemy_고블린_거대형.png` | 느리지만 단단하고 세게 침 |
+| 주술사형 | 25 | 10 | 0 | 0 | `enemy_고블린_주술사형.png` | 방어 포기하고 화력에 올인 |
+
+EXP/골드 보상(60/25, 원본 `src/Game.cpp: Enemy goblin("고블린", 30, 7, 1, 60, 25)`와 동일)은 4개 변종 모두 공통으로 유지한다 — 보상 밸런스까지 새로 설계하지 않는다(과설계 금지). 이름(`GetName()`)도 4개 변종 전부 "고블린"으로 동일하게 유지한다(전투 로그·UI 문구가 변종별로 갈라지지 않도록).
 
 **신규(2026-09-08, DEC-123, Unity 한정):**
 - `Enemy.attackSpeed: int` — 기본값 0. BattleSystem이 매 턴 `player.attackSpeed`와 비교해 선공을 정한다.

@@ -32,6 +32,19 @@ namespace TextRPG.UI
             public Sprite sprite;
         }
 
+        /// <summary>
+        /// 신규(OQ-107 해결, DEC-124): 전투 중 표시할 적 초상화. Enemy.PortraitVariants[0](이제 후보 풀이
+        /// 아니라 전투 시작 시 이미 확정된 단일 파일명, GameSession.StartBattleWithGoblin 참조)과
+        /// 파일명으로 매칭한다. locationArt와 동일한 "이름→스프라이트" 매칭 패턴을 그대로 재사용했다
+        /// (범용 스프라이트 리소스 시스템을 새로 만들지 않음 — 과설계 금지).
+        /// </summary>
+        [Serializable]
+        public class PortraitArt
+        {
+            public string fileName;
+            public Sprite sprite;
+        }
+
         [SerializeField] private GameBootstrap bootstrap;
         [SerializeField] private Image backgroundImage;
         [SerializeField] private TMP_Text statusLineText;
@@ -40,6 +53,10 @@ namespace TextRPG.UI
         [SerializeField] private Transform buttonRow;
         [SerializeField] private Button buttonTemplate; // 비활성 오브젝트로 두고 복제해서 사용
         [SerializeField] private List<LocationArt> locationArt = new List<LocationArt>();
+
+        [Header("적 초상화 (OQ-107/DEC-124 — 전투 중에만 표시)")]
+        [SerializeField] private Image enemyPortraitImage; // 씬에 연결 안 된 환경(null)에서도 안전하게 동작해야 함
+        [SerializeField] private List<PortraitArt> enemyPortraitArt = new List<PortraitArt>();
 
         [Header("상태 확인 오버레이 (SCR-005/006 최소 버전)")]
         [SerializeField] private GameObject statusOverlayRoot;
@@ -84,6 +101,7 @@ namespace TextRPG.UI
             var location = session.Map.GetCurrentLocation();
 
             SetBackground(location.Name);
+            HideEnemyPortrait(); // 신규(DEC-124): 탐색 화면에서는 적 초상화를 표시하지 않는다.
             statusLineText.text =
                 $"[라운드 {session.GameRound}] {CharacterClassDatabase.Get(session.Player.ClassId)?.DisplayName ?? session.Player.GetName()} " +
                 $"HP {session.Player.GetHp()}/{session.Player.GetMaxHp()} · ATK {session.Player.GetAttack()} · " +
@@ -162,6 +180,11 @@ namespace TextRPG.UI
             var enemy = session.CurrentEnemy;
 
             SetBackground(session.Map.GetCurrentLocation().Name);
+            // 신규(OQ-107 해결, DEC-124): 전투 중에는 확정된 적 초상화를 표시한다. Enemy.PortraitVariants는
+            // 이제 후보 풀이 아니라 GameSession이 전투 시작 시 이미 선택을 끝낸 단일 파일명이다.
+            SetEnemyPortrait(enemy.PortraitVariants != null && enemy.PortraitVariants.Length > 0
+                ? enemy.PortraitVariants[0]
+                : null);
             statusLineText.text = $"--- 전투 {battle.Round}턴 ---";
             titleText.text = $"{session.Player.GetName()} VS {enemy.GetName()}";
             bodyText.text =
@@ -252,6 +275,43 @@ namespace TextRPG.UI
                 }
             }
             backgroundImage.enabled = false;
+        }
+
+        /// <summary>
+        /// 신규(OQ-107 해결, DEC-124): portraitFileName(예: "enemy_고블린_거대형.png")과 정확히 일치하는
+        /// enemyPortraitArt 항목을 찾아 표시한다. enemyPortraitImage가 씬에 연결돼 있지 않거나
+        /// (인프라 부재 방어), 매칭되는 스프라이트가 없으면 조용히 숨기고 끝낸다 — 텍스트 기반 전투
+        /// 자체는 항상 정상 동작해야 하므로 초상화 실패가 전투 진행을 막으면 안 된다.
+        /// </summary>
+        private void SetEnemyPortrait(string portraitFileName)
+        {
+            if (enemyPortraitImage == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(portraitFileName))
+            {
+                foreach (var art in enemyPortraitArt)
+                {
+                    if (art.fileName == portraitFileName)
+                    {
+                        enemyPortraitImage.sprite = art.sprite;
+                        enemyPortraitImage.enabled = art.sprite != null;
+                        return;
+                    }
+                }
+            }
+
+            enemyPortraitImage.enabled = false;
+        }
+
+        private void HideEnemyPortrait()
+        {
+            if (enemyPortraitImage != null)
+            {
+                enemyPortraitImage.enabled = false;
+            }
         }
 
         private void ShowStatusOverlay()

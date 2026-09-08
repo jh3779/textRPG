@@ -58,6 +58,10 @@ namespace TextRPG.EditorTools
             passed += Check("DEC-123 수정: 같은 GameSession 인스턴스로 '새 게임'을 다시 시작하면 휴식 제한이 초기화되어야 함", TestRestLimitResetsWhenSameSessionStartsNewGame);
             passed += Check("DEC-123: 전투 중 마나 회복 스킬은 재료('마나 결정')를 소모해야 함", TestManaRecoverySkillConsumesMaterialInBattle);
 
+            // 신규(OQ-107 해결, DEC-124): 고블린 4개 변종이 스탯도 다른 별개의 적으로 무작위 선택되는지
+            passed += Check("DEC-124: 고블린 조우 시 4개 변종이 전부 무작위로 나오고, 각 변종의 스탯·포트레이트·보상이 정확해야 함",
+                TestGoblinVariantSelectionAndStatsMatchVariantTable);
+
             Debug.Log($"[RegressionSmokeTest] ALL PASSED ({passed} checks)");
         }
 
@@ -620,6 +624,59 @@ namespace TextRPG.EditorTools
 
             Assert(session.CanRestHere(),
                 "2회차(새 게임)는 1회차의 휴식 이력과 무관하게 던전 입구에서 휴식 가능해야 함(ConfirmClass가 restedLocationIndices를 초기화해야 함)");
+        }
+
+        /// <summary>
+        /// OQ-107 해결(DEC-124): 고블린 4개 시각 변종은 이제 스탯도 다른 별개의 적이다. StartBattleWithGoblin()은
+        /// private이라 GameSession의 실제 진행 흐름(던전 입구→갈림길→어두운 통로 자동 전투)을 통해 간접
+        /// 트리거한다. 충분한 횟수를 반복해 ① 4종이 전부 무작위로 관측되는지, ② 관측된 각 조합의 스탯/공격속도/
+        /// 포트레이트/보상이 06_open_questions.md DEC-124 표와 정확히 일치하는지 확인한다.
+        /// </summary>
+        private static void TestGoblinVariantSelectionAndStatsMatchVariantTable()
+        {
+            var expected = new System.Collections.Generic.Dictionary<string, (int Hp, int Atk, int Def, int AttackSpeed)>
+            {
+                ["enemy_고블린_약소형.png"] = (20, 5, 0, 0),
+                ["enemy_고블린_날렵형.png"] = (25, 7, 1, 2),
+                ["enemy_고블린_거대형.png"] = (45, 9, 3, -1),
+                ["enemy_고블린_주술사형.png"] = (25, 10, 0, 0),
+            };
+
+            var observedPortraits = new System.Collections.Generic.HashSet<string>();
+            const int trials = 200; // 4종 중 하나라도 관측되지 않을 확률은 (3/4)^200 ≈ 0에 수렴
+
+            for (int i = 0; i < trials; i++)
+            {
+                var session = new GameSession();
+                session.BeginNewGameFlow();
+                session.SelectPendingClass("warrior");
+                session.ConfirmClass();
+
+                session.ChooseLocationAction(1); // 던전 입구 -> 갈림길
+                session.ChooseLocationAction(2); // 오른쪽 통로 -> 어두운 통로, 고블린과 자동 전투
+                Assert(session.CurrentState == GameState.BATTLE, "고블린과 전투가 시작되어야 함");
+
+                var enemy = session.CurrentEnemy;
+                Assert(enemy.GetName() == "고블린", "고블린 변종이어도 이름은 '고블린'으로 유지되어야 함");
+                Assert(enemy.PortraitVariants != null && enemy.PortraitVariants.Length == 1,
+                    "DEC-124: 더 이상 4개 후보 풀이 아니라 확정된 포트레이트 1개만 가져야 함");
+
+                string portrait = enemy.PortraitVariants[0];
+                Assert(expected.ContainsKey(portrait), $"알 수 없는 포트레이트 파일명: {portrait}");
+
+                var (expHp, expAtk, expDef, expAtkSpd) = expected[portrait];
+                Assert(enemy.GetMaxHp() == expHp && enemy.GetAttack() == expAtk && enemy.GetDefense() == expDef,
+                    $"{portrait} 스탯 불일치: HP{enemy.GetMaxHp()}/ATK{enemy.GetAttack()}/DEF{enemy.GetDefense()} " +
+                    $"(기대 HP{expHp}/ATK{expAtk}/DEF{expDef})");
+                Assert(enemy.AttackSpeed == expAtkSpd, $"{portrait} 공격속도 불일치: {enemy.AttackSpeed} (기대 {expAtkSpd})");
+                Assert(enemy.GetExperienceReward() == 60 && enemy.GetGoldReward() == 25,
+                    "DEC-124: 4종 모두 EXP60/골드25 보상은 원본과 동일하게 유지되어야 함");
+
+                observedPortraits.Add(portrait);
+            }
+
+            Assert(observedPortraits.Count == 4,
+                $"{trials}회 시행에서 4종 변종이 전부 관측되어야 하는데 {observedPortraits.Count}종만 관측됨");
         }
 
         private static void TestManaRecoverySkillConsumesMaterialInBattle()
