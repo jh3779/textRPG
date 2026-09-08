@@ -23,6 +23,7 @@
 
 using System.Collections;
 using System.IO;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using TextRPG.GameLogic;
 using TextRPG.Persistence;
@@ -72,6 +73,44 @@ namespace TextRPG.Tests.PlayMode
                 }
             }
             return null;
+        }
+
+        // ----------------------------------------------------------------
+        // 알려진 무관한 에디터 노이즈 로그만 정확히 소비(review-verify-agent Critical 반영)
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// 이 프로젝트가 아직 TMP Essential Resources를 임포트하지 않아(범위 밖 인프라 변경 —
+        /// 최종 보고 참조) Unity Editor가 세션마다 한 번 TMP 패키지 임포터 창을 -nographics에서
+        /// 띄우려다 실패하며 남기는 무관한 에러 로그(예: "No graphic device is available to show
+        /// the window."/"...to initialize the view.")가 있다. WaitForSeconds로 실제 시간을 오래
+        /// 기다리는 테스트(G/H)에서 이 로그와 우연히 겹칠 수 있다.
+        ///
+        /// review-verify-agent Critical 지적: 최초 구현은 이 구간에서 <see cref="LogAssert.ignoreFailingMessages"/>를
+        /// 통째로 켜서 무관한 로그를 걸렀는데, 이 API는 특정 메시지만이 아니라 그 구간의 모든
+        /// Error/Assert/Exception 자동실패 체크를 꺼버려 정작 이번에 새로 추가한 위험도 높은 코드
+        /// (InkMarkOverlay/QuillRevealText)의 진짜 에러도 못 잡는 문제가 실증됐다(InkMarkOverlay.Show()에
+        /// Debug.LogError를 임시 주입해도 테스트가 Passed로 통과하는 것으로 재현됨).
+        ///
+        /// 수정: <see cref="LogAssert.Expect(LogType, string)"/>는 "그 메시지가 반드시 나타나야
+        /// 테스트가 통과한다"는 정반대 제약이 있어(끝까지 안 나타나면 오히려 실패), 타이밍이
+        /// 비결정적인 이 노이즈에 그대로 쓸 수 없다. 대신 <see cref="Application.logMessageReceived"/>를
+        /// 직접 구독해 알려진 노이즈 패턴과 실제로 일치하는 로그가 찍히는 순간에만(즉 이미 발생을
+        /// 확인한 로그에 대해서만) 그 정확한 메시지 문자열로 <see cref="LogAssert.Expect(LogType, string)"/>를
+        /// 호출해 그 로그 하나만 소비한다 — 노이즈가 몇 번 찍히든, 심지어 한 번도 안 찍히든(이 경우
+        /// Expect 자체를 호출하지 않으므로 "기대했는데 안 나타남" 실패도 없다) 항상 안전하다.
+        /// 패턴에 해당하지 않는 다른 모든 Error/Assert/Exception 로그(우리 코드가 남긴 진짜 버그
+        /// 포함)는 이 핸들러가 손대지 않으므로 여전히 테스트를 실패시킨다.
+        /// </summary>
+        private static readonly Regex KnownNoisyEditorLogPattern =
+            new Regex(@"No graphic device is available to (show the window|initialize the view)\.");
+
+        private static void ConsumeKnownEditorNoiseIfMatched(string message, string stackTrace, LogType type)
+        {
+            if (type == LogType.Error && KnownNoisyEditorLogPattern.IsMatch(message))
+            {
+                LogAssert.Expect(LogType.Error, message);
+            }
         }
 
         // ----------------------------------------------------------------
@@ -393,6 +432,118 @@ namespace TextRPG.Tests.PlayMode
             finally
             {
                 RestoreSaveFile(hadExisting, backup);
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 테스트 G: 직업 카드 선택 시 잉크마크(InkMarkOverlay) activeSelf/fillAmount 실제 변화(DEC-127)
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator G_ClassSelect_CardSelection_TogglesInkMarkOverlay()
+        {
+            bool hadExisting = false;
+            string backup = null;
+            // 이 테스트는 WaitForSeconds로 실제 시간을 기다린다 — ConsumeKnownEditorNoiseIfMatched
+            // 참조(알려진 무관한 TMP 임포터 창 에러 로그만 정확히 소비, 그 외 진짜 에러는 그대로 실패).
+            Application.logMessageReceived += ConsumeKnownEditorNoiseIfMatched;
+            try
+            {
+                backup = BackupSaveFileIfExists(out hadExisting);
+                DeleteSaveFileIfExists();
+
+                yield return LoadMainScene();
+
+                var titleController = FindController<TitlePanelController>();
+                var classSelectController = FindController<ClassSelectPanelController>();
+
+                titleController.transform.Find("ParchmentCard/NewGameButton").GetComponent<Button>().onClick.Invoke();
+                yield return null;
+
+                var warriorCard = classSelectController.transform.Find("Card_warrior");
+                var rogueCard = classSelectController.transform.Find("Card_rogue");
+                var warriorInk = warriorCard.GetComponentInChildren<InkMarkOverlay>(true);
+                var rogueInk = rogueCard.GetComponentInChildren<InkMarkOverlay>(true);
+                Assert.IsNotNull(warriorInk, "전사 카드에 InkMarkOverlay가 연결되어 있어야 합니다.");
+                Assert.IsNotNull(rogueInk, "도적 카드에 InkMarkOverlay가 연결되어 있어야 합니다.");
+
+                Assert.IsFalse(warriorInk.gameObject.activeSelf, "선택 전에는 잉크마크가 숨겨져 있어야 합니다.");
+                Assert.IsFalse(rogueInk.gameObject.activeSelf);
+
+                warriorCard.GetComponent<Button>().onClick.Invoke();
+                yield return null;
+
+                Assert.IsTrue(warriorInk.gameObject.activeSelf, "전사 카드를 선택하면 잉크마크가 표시되어야 합니다(DEC-118/127).");
+                Assert.IsFalse(rogueInk.gameObject.activeSelf, "선택하지 않은 카드는 잉크마크가 표시되면 안 됩니다.");
+
+                var warriorRing = warriorInk.GetComponent<Image>();
+                float fillEarly = warriorRing.fillAmount;
+                Assert.Less(fillEarly, 1f, "선택 직후에는 원이 아직 다 그려지지 않은 상태(fillAmount < 1)여야 합니다.");
+
+                yield return new WaitForSeconds(0.25f);
+                Assert.Greater(warriorRing.fillAmount, fillEarly,
+                    "시간이 지나면 잉크마크 fillAmount가 더 커져야 합니다(원이 그려지는 중, DEC-118/127).");
+
+                // 다른 카드로 선택을 바꾸면 이전 카드의 잉크마크는 사라지고 새 카드에 나타나야 함
+                rogueCard.GetComponent<Button>().onClick.Invoke();
+                yield return null;
+
+                Assert.IsFalse(warriorInk.gameObject.activeSelf, "다른 카드를 선택하면 이전 카드의 잉크마크는 사라져야 합니다.");
+                Assert.IsTrue(rogueInk.gameObject.activeSelf, "새로 선택한 카드에 잉크마크가 표시되어야 합니다.");
+            }
+            finally
+            {
+                RestoreSaveFile(hadExisting, backup);
+                Application.logMessageReceived -= ConsumeKnownEditorNoiseIfMatched;
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 테스트 H: 결과 화면 깃펜 필기 연출(QuillRevealText)의 maxVisibleCharacters/진행률이
+        // 시간에 따라 실제로 증가하는지(DEC-121/127)
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator H_ResultPanel_QuillReveal_ProgressesOverTimeAndCompletes()
+        {
+            // 테스트 G와 동일한 이유로 ConsumeKnownEditorNoiseIfMatched를 구독한다(알려진 무관한
+            // 로그만 정확히 소비, 그 외 진짜 에러는 그대로 실패).
+            Application.logMessageReceived += ConsumeKnownEditorNoiseIfMatched;
+            try
+            {
+                yield return LoadMainScene();
+
+                var resultController = FindController<ResultPanelController>();
+                var quill = resultController.GetComponentInChildren<QuillRevealText>(true);
+                Assert.IsNotNull(quill, "ResultPanel의 서술 텍스트에 QuillRevealText가 연결되어 있어야 합니다.");
+
+                var text = quill.GetComponent<TMP_Text>();
+                Assert.IsNotNull(text, "QuillRevealText와 같은 오브젝트에 TMP_Text가 있어야 합니다.");
+
+                // 코루틴은 비활성 GameObject에서 시작할 수 없다 — 실제 흐름(GameBootstrap.ShowResult()가
+                // SetActivePanel로 먼저 켠 뒤 Refresh()를 호출)과 동일하게 패널을 먼저 활성화한다.
+                resultController.gameObject.SetActive(true);
+
+                const string sample = "던전의 주인을 물리치고 던전을 클리어했습니다.";
+                quill.Play(sample);
+                // StartCoroutine 호출 시점에 첫 yield 전까지는 동기 실행되므로(Unity 코루틴 특성),
+                // Play() 직후에도 이미 한 프레임 분량만큼 진행되어 있을 수 있다 — "정확히 0"이 아니라
+                // "아직 완료 전(1 미만)"만 확인하고, 이후 진행률이 실제로 더 커지는지로 검증한다.
+                float progressEarly = quill.Progress;
+                int visibleEarly = text.maxVisibleCharacters;
+                Assert.Less(progressEarly, 1f, "재생 시작 직후에는 아직 완료 전이어야 합니다.");
+
+                yield return new WaitForSeconds(0.3f);
+                float progressMid = quill.Progress;
+                int visibleMid = text.maxVisibleCharacters;
+                Assert.Greater(progressMid, progressEarly, "시간이 지나면 진행률이 더 커져야 합니다.");
+                Assert.GreaterOrEqual(visibleMid, visibleEarly, "시간이 지나면 maxVisibleCharacters가 줄어들면 안 됩니다.");
+
+                yield return new WaitForSeconds(1.5f);
+                Assert.AreEqual(1f, quill.Progress, 0.001f, "충분한 시간이 지나면 진행률이 1(완료)이 되어야 합니다.");
+                Assert.AreEqual(sample, text.text, "전체 문장이 그대로 설정되어 있어야 합니다(clip-path 근사이므로 텍스트 자체는 항상 전체가 들어있음).");
+            }
+            finally
+            {
+                Application.logMessageReceived -= ConsumeKnownEditorNoiseIfMatched;
             }
         }
 

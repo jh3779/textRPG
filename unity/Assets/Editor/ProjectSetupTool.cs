@@ -119,6 +119,7 @@ namespace TextRPG.EditorTools
             var cardImg = card.gameObject.AddComponent<Image>();
             cardImg.color = new Color32(0xE8, 0xDC, 0xC0, 0xFF);
             AddBackgroundSprite(card, "material_양피지", Color.white, 1f);
+            AddFoldLine(card); // DEC-121/DEC-127: 표지(큰 양피지 패널)에 중앙 접힘선
 
             CreateText("Title", card, "DUNGEON GATE", 44, new Color32(0x3B, 0x33, 0x20, 0xFF), TextAlignmentOptions.Center,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(460, 80), new Vector2(0, -60));
@@ -226,6 +227,8 @@ namespace TextRPG.EditorTools
                 var targetGraphic = cardBg;
                 selectBtn.targetGraphic = targetGraphic;
 
+                var inkMark = BuildInkMarkOverlay(cardRoot); // DEC-118/DEC-127: 선택 시 잉크마크 연출
+
                 cards[i] = new ClassSelectPanelController.ClassCard
                 {
                     classId = ids[i],
@@ -234,7 +237,8 @@ namespace TextRPG.EditorTools
                     portraitImage = portraitImg,
                     nameText = nameText,
                     statsText = statsText,
-                    itemsText = itemsText
+                    itemsText = itemsText,
+                    inkMarkOverlay = inkMark
                 };
             }
 
@@ -257,6 +261,7 @@ namespace TextRPG.EditorTools
                 element.FindPropertyRelative("nameText").objectReferenceValue = cards[i].nameText;
                 element.FindPropertyRelative("statsText").objectReferenceValue = cards[i].statsText;
                 element.FindPropertyRelative("itemsText").objectReferenceValue = cards[i].itemsText;
+                element.FindPropertyRelative("inkMarkOverlay").objectReferenceValue = cards[i].inkMarkOverlay;
             }
             so.ApplyModifiedPropertiesWithoutUndo();
 
@@ -405,12 +410,31 @@ namespace TextRPG.EditorTools
                 new Vector2(480, 360), Vector2.zero);
             var cardImg = card.gameObject.AddComponent<Image>();
             cardImg.color = new Color32(0xE8, 0xDC, 0xC0, 0xFF);
+            AddFoldLine(card); // DEC-121/DEC-127: 결과지(큰 양피지 패널)에 중앙 접힘선
 
             var headline = CreateText("Headline", card, "GAME OVER", 30, new Color32(0x8B, 0x2E, 0x2E, 0xFF),
                 TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(420, 50), new Vector2(0, -30));
 
             var description = CreateText("Description", card, "", 16, new Color32(0x5B, 0x4E, 0x33, 0xFF),
                 TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(420, 40), new Vector2(0, -90));
+
+            // DEC-121/DEC-127: 깃펜 필기 연출 — 서술 텍스트 하단 진행 기준선을 따라가는 펜 아이콘.
+            // 특정 글자(caret) 위치가 아니라 Description 텍스트 박스 폭 전체를 트랙으로 사용한다
+            // (unity-mapping.html M-02 2026-09-07 수정 지침 — 줄바꿈에 영향받지 않기 위함).
+            var penIconRT = CreateAnchored("QuillPen", description.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(12, 12), new Vector2(0, -4));
+            var penImage = penIconRT.gameObject.AddComponent<Image>();
+            penImage.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
+            penImage.color = UIColors.QuillInk;
+            penImage.raycastTarget = false;
+            var penCanvasGroup = penIconRT.gameObject.AddComponent<CanvasGroup>();
+            penCanvasGroup.alpha = 0f;
+
+            var quillReveal = description.gameObject.AddComponent<QuillRevealText>();
+            BindSerialized(quillReveal,
+                ("text", description),
+                ("penIcon", penIconRT),
+                ("penCanvasGroup", penCanvasGroup));
 
             var stats = CreateText("Stats", card, "", 14, new Color32(0x5B, 0x4E, 0x33, 0xFF),
                 TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(420, 30), new Vector2(0, -140));
@@ -422,6 +446,7 @@ namespace TextRPG.EditorTools
             BindSerialized(controller,
                 ("bootstrap", bootstrap),
                 ("headlineText", headline),
+                ("descriptionQuill", quillReveal),
                 ("descriptionText", description),
                 ("statsText", stats),
                 ("backToTitleButton", backBtn));
@@ -483,6 +508,50 @@ namespace TextRPG.EditorTools
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             return button;
+        }
+
+        /// <summary>
+        /// DEC-118/DEC-127: 잉크마크 선택 표식(InkMarkOverlay)을 cardRoot 위에 카드보다 살짝 크게
+        /// (CSS .inkmark의 inset:-7px 근사) 겹쳐 생성한다. 처음엔 비활성 상태로 시작하고, 선택 시
+        /// ClassSelectPanelController.UpdateSelectionVisual()이 Show()/Hide()를 호출한다.
+        /// </summary>
+        private static InkMarkOverlay BuildInkMarkOverlay(RectTransform cardRoot)
+        {
+            var overlayRT = CreateAnchored("InkMark", cardRoot, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(cardRoot.sizeDelta.x + 16f, cardRoot.sizeDelta.y + 16f), Vector2.zero);
+            var ring = overlayRT.gameObject.AddComponent<Image>();
+            ring.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
+            ring.color = UIColors.InkMark;
+            ring.type = Image.Type.Filled;
+            ring.fillMethod = Image.FillMethod.Radial360;
+            ring.fillClockwise = true;
+            ring.fillAmount = 0f;
+            ring.raycastTarget = false;
+            overlayRT.SetAsLastSibling(); // CSS z-index:5와 동일하게 카드 내용물 위에 그려지도록
+
+            var overlay = overlayRT.gameObject.AddComponent<InkMarkOverlay>();
+            BindSerialized(overlay, ("ring", ring));
+            overlayRT.gameObject.SetActive(false);
+            return overlay;
+        }
+
+        /// <summary>
+        /// DEC-121/DEC-127: 큰 양피지 패널(표지·결과지) 중앙에 은은한 세로 접힘선(FoldLine)을
+        /// 추가한다. 원본 CSS .foldline은 그라디언트지만, 스크립트로 만드는 단순화 버전은 새
+        /// 텍스처를 만들지 않기 위해 단색 반투명 Image로 근사한다(CSS top:5%/bottom:5%와 동일 비율).
+        /// </summary>
+        private static void AddFoldLine(RectTransform parent)
+        {
+            var go = new GameObject("FoldLine", typeof(RectTransform));
+            var rt = go.GetComponent<RectTransform>();
+            rt.SetParent(parent, false);
+            rt.anchorMin = new Vector2(0.5f, 0.05f);
+            rt.anchorMax = new Vector2(0.5f, 0.95f);
+            rt.sizeDelta = new Vector2(3f, 0f);
+            rt.anchoredPosition = Vector2.zero;
+            var img = go.AddComponent<Image>();
+            img.color = UIColors.FoldLine;
+            img.raycastTarget = false;
         }
 
         private static void AddOutline(Transform target, Color color)

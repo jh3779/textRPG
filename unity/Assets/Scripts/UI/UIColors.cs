@@ -36,5 +36,17 @@ namespace TextRPG.UI
         public static readonly Color32 TextBarBackground = new Color32(0x0F, 0x0D, 0x1A, 168);
         // .fullbleed::after 하단 그라디언트 근사 단색(스크립트 생성 단순화 — 실제로는 그라디언트)
         public static readonly Color32 ScrimBottom = new Color32(0x06, 0x05, 0x0C, 224);
+
+        // ------------------------------------------------------------------
+        // DEC-127 신규: 잉크마크·깃펜·접힘선 시각효과용 색상.
+        // docs/design-system/unity-mapping.html M-01/M-02, docs/06_open_questions.md DEC-127 참조.
+        // ------------------------------------------------------------------
+
+        // .inkmark .ink-loop / .ink-wash (DEC-118) — 진남색, "플레이어가 표시"
+        public static readonly Color32 InkMark = new Color32(0x2B, 0x3F, 0x7A, 0xFF);
+        // .qw-pen (DEC-121) — 기존 잉크브라운(.tc-icon/.silhouette 아이콘과 동일 톤), "세계가 기록"
+        public static readonly Color32 QuillInk = new Color32(0x6B, 0x4A, 0x1E, 0xFF);
+        // .foldline (DEC-121) — 같은 잉크브라운 값의 알파만 낮춰 재사용(새 색상 추가 안 함)
+        public static readonly Color32 FoldLine = new Color32(0x6B, 0x4A, 0x1E, 90);
     }
 }
