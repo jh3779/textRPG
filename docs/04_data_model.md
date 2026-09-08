@@ -10,19 +10,41 @@
 | classId | string | 고유 ID (예: "warrior", "rogue", "mage") |
 | displayName | string | 화면에 표시할 이름 |
 | portraitAsset | string | 초상화 이미지 리소스 참조 |
-| baseHp / baseAttack / baseDefense | int | 시작 스탯 (직업별로 다름 — 스킬/성장 분기는 없음, 01_requirements Won't) |
-| startingItems | Item[] (ENT-105 참조) | 시작 인벤토리 — 직업별로 다름(DEC-111, 2026-09-04 추가). 정확한 목록은 OQ-103에서 확정 |
+| baseHp / baseAttack / baseDefense | int | 시작 스탯 (직업별로 다름 — 스킬/성장 분기는 없음, 01_requirements Won't). **2026-09-08(DEC-123, Unity 한정) 갱신: 이 값들은 "기본 스탯 + 시작 무기 보너스"가 이미 합산된 최종값**이다 — 아래 신규 필드 참조 |
+| startingItems | Item[] (ENT-105 참조) | 시작 인벤토리 — 직업별로 다름(DEC-111, 2026-09-04 추가). 정확한 목록은 OQ-103에서 확정. **2026-09-08부터 이 중 시작 무기(장검/단검 2자루/지팡이)는 실제로 스탯에 영향을 준다(DEC-123)** — 아래 참조 |
+| baseMana | int | 신규(DEC-123, Unity 한정). 최대 마나(시작 무기 보너스 포함 최종값). 전사10/도적15/마법사32 |
+| attackSpeed | int | 신규(DEC-123). 공격속도(시작 무기 보너스 포함 최종값). 매 턴 플레이어와 적의 값을 비교해 선공을 정한다(높은 쪽 선공, 동률이면 플레이어 우선). 전사-1/도적+3/마법사+1 |
+| hasDoubleAttack | bool | 신규(DEC-123). true면 기본 공격이 1회가 아니라 2회 독립 타격(도적 쌍검 패시브만 true) |
+| manaSkill / manaSkillName / manaSkillCost | enum / string / int | 신규(DEC-123). 직업별 마나 소모 스킬 — 전사 강타(5)/도적 맹독 일격(7)/마법사 화염구(10) |
+
+**무기 보너스 반영 표(DEC-123, 검증용 — RegressionSmokeTest.TestCharacterClassStats와 대조):**
+
+| 직업 | HP | ATK | DEF | Mana | 공격속도 |
+|---|---|---|---|---|---|
+| 전사(장검) | 114 | 13 | 5 | 10 | -1 |
+| 도적(단검 2자루, 기본 공격 2타) | 85 | 16 | 2 | 15 | +3 |
+| 마법사(지팡이) | 75 | 19 | 1 | 32 | +1 |
+
+> DEC-102/DEC-111("스킬트리 없음, 시작 스탯+아이템만")과의 관계는 `06_open_questions.md` DEC-123 참조 —
+> 이번 확장은 콘솔 정본이 아니라 **Unity 버전에 한해서만** 그 원칙을 수정한 것이다.
 
 ### ENT-102 · Player (기존 `Player` 기반 + classId 추가)
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | classId | string | 선택한 직업 (ENT-101 참조) — 신규 |
 | name / hp / maxHp / attack / defense / level / experience / gold | 기존과 동일 | `include/Player.h` 그대로 |
+| mana / maxMana | int | 신규(DEC-123, Unity 한정). 캐릭터 생성 시 CharacterClass.baseMana로 가득 채워지며, **이후로는 HP처럼 전투 간 이월되는 지속 자원**이다(전투 승패와 무관하게 자동으로 풀회복되지 않음). 회복 수단은 마나 물약(아이템 사용)·휴식하기(탐색 화면, 지역당 1회, 최대 마나의 40%)·마나 회복(전투 중, 마나가 아니라 "마나 결정" 재료 1개 소모, 최대 마나의 45%) 3가지뿐이다 |
+| attackSpeed | int | 신규(DEC-123). CharacterClass.attackSpeed에서 복사. 콘솔 원본 기본 생성자(직업 없음)는 0 |
+| hasDoubleAttack | bool | 신규(DEC-123). CharacterClass.hasDoubleAttack에서 복사 |
 
 ### ENT-103 · Enemy, ENT-104 · Location, ENT-105 · Item, ENT-106 · Quest
 기존 웹 버전 기획(구 문서)과 동일 — 콘솔 버전의 `Enemy`/`Map::Location`/`Item`/`Quest` 필드를 그대로 사용. 필드 정의는 각 C++ 헤더(`include/Enemy.h`, `include/Map.h`, `include/Item.h`, `include/Quest.h`) 참조.
 
 **아트 변형 (2026-09-04 추가, DEC-114):** `Enemy`에 `portraitVariants: string[]`를 하나 추가 — 고블린은 `art-assets/enemy_고블린_{약소형|날렵형|거대형|주술사형}.png` 4장 중 전투 시작 시 무작위 1장을 고른다(스탯은 그대로 하나, OQ-107 미결정). 던전 수호자는 `art-assets/enemy_던전수호자.png`(균형형) 고정 1장만 사용 — 나머지 3변종은 데이터 모델에 아직 연결하지 않음(OQ-108).
+
+**신규(2026-09-08, DEC-123, Unity 한정):**
+- `Enemy.attackSpeed: int` — 기본값 0. BattleSystem이 매 턴 `player.attackSpeed`와 비교해 선공을 정한다.
+- **신규 아이템 2종(ENT-105 Item)**: "마나 물약"(POTION, value=25 — "아이템 사용" 시 이름에 "마나"가 포함되어 있으면 HP 대신 마나를 회복하는 최소 분기로 처리, 낡은 무기고에서 획득) / "마나 결정"(CONSUMABLE, value=1 — 전투 중 "마나 회복" 행동이 소모하는 재료, 고블린 처치 보상으로 지급). 둘 다 콘솔 원본에는 대응 데이터가 없는 신규 콘텐츠.
 
 ## 관계 · 소유 단위
 ```
@@ -35,6 +57,6 @@ GameSession 1 ── 1 Player, 1 Map(Location 5개), 0..1 진행 중 Enemy(전�
 
 ## 저장 · 동기화
 - 저장 위치: Unity `Application.persistentDataPath`에 로컬 JSON 파일 (콘솔 버전의 `saves/save1.txt` key=value 대신 JSON으로, 필드는 동일하게 유지)
-- 저장 필드: 기존 `version, hp, max_hp, attack, defense, level, experience, gold, location, game_round, armory_looted, goblin_defeated, item_*, quest_*` (콘솔 버전 `version=2` 포맷, architecture-audit 2026-09-04 수정분 포함) + 신규 `class_id`
+- 저장 필드: 기존 `version, hp, max_hp, attack, defense, level, experience, gold, location, game_round, armory_looted, goblin_defeated, item_*, quest_*` (콘솔 버전 `version=2` 포맷, architecture-audit 2026-09-04 수정분 포함) + 신규 `class_id` + 신규(2026-09-08, DEC-123) `mana, max_mana`(마나는 HP처럼 전투 간·세션 간 이월되는 지속 자원이라 저장이 필요해짐). `version` 번호는 올리지 않고(기존 2 유지) 필드만 추가했다 — 구버전 세이브(마나 필드 없음)를 읽으면 `max_mana`가 0으로 채워지는데, `Player.LoadState()`가 `savedMaxMana<=0`이면 클래스 기반 기본 마나값을 그대로 유지하도록 방어해 하위호환을 지켰다
 - 오프라인 가용성: 완전 오프라인(로컬 파일 I/O만 사용, REQ-NF-102)
 - 동기화 시점: SCR-003의 "저장하고 종료" 선택 시에만 기록 — 자동 저장 없음(콘솔 버전과 동일한 "안전 지점 저장" 원칙 유지)

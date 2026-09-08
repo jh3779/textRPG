@@ -39,9 +39,24 @@ namespace TextRPG.EditorTools
             passed += Check("BattleSystem 반격 데미지 범위(ATK+[0,2])", TestBattleEnemyAttackRange);
             passed += Check("BattleSystem 도망 성공률 55%(통계적 근사)", TestFleeRateApprox55Percent);
             passed += Check("BattleSystem 전체 전투 시뮬레이션(고블린전)", TestFullGoblinBattleSimulation);
-            passed += Check("CharacterClassDatabase 3직업 수치(와이어프레임 S-002 기준)", TestCharacterClassStats);
+            passed += Check("CharacterClassDatabase 3직업 최종 수치(DEC-123: 기본스탯+무기보너스 반영)", TestCharacterClassStats);
             passed += Check("GameSession 새 게임→직업 확정→전투→승리 전체 플로우", TestGameSessionFullPlaythroughToVictoryPossible);
             passed += Check("OQ-102/DEC-122: SaveSystem.SaveExists()가 새 게임 덮어쓰기 확인 모달 표시 조건과 일치", TestSaveExistsDetection);
+
+            // 신규(DEC-123): 공격속도 선공 결정 · 도적 2타 · 마나 스킬 3종 · 마나 회복 경제(아이템/휴식/재료 스킬)
+            passed += Check("DEC-123: 공격속도가 더 높은 적이 선공해야 함", TestAttackSpeedDeterminesTurnOrder);
+            passed += Check("DEC-123: 공격속도가 같거나 더 높으면 플레이어가 선공해야 함(동률 시 플레이어 우선)", TestPlayerActsFirstWhenFasterOrTied);
+            passed += Check("DEC-123: 도적 쌍검 패시브 — 기본 공격이 2회 독립 타격해야 함", TestRogueDoubleAttack);
+            passed += Check("DEC-123: 마나가 스킬 비용보다 적으면 CanUseManaSkill()이 false여야 함", TestManaSkillAffordability);
+            passed += Check("DEC-123: 전사 강타 — 피해량이 1.5배로 계산되어야 함", TestWarriorPowerStrikeDamage);
+            passed += Check("DEC-123: 마법사 화염구 — 방어력을 절반만 적용해야 함", TestMageFireballHalvesDefense);
+            passed += Check("DEC-123: 도적 맹독 일격 — 즉시타격 + 3턴 도트(틱당 고정 피해)", TestRoguePoisonStrikeAppliesDotOverThreeTurns);
+            passed += Check("DEC-123 수정: 맹독 일격 3틱 합계가 정확히 totalDot(최대체력10%)과 같아야 함", TestPoisonStrikeThreeTickTotalMatchesTenPercent);
+            passed += Check("DEC-123: 마나는 새 전투 시작 시 자동으로 풀회복되지 않아야 함(전투 간 이월)", TestManaDoesNotAutoRestoreBetweenBattles);
+            passed += Check("DEC-123: GameSession.UseItem — 이름에 '마나' 포함 여부로 HP/마나 회복 분기", TestUseItemRestoresHpOrManaBasedOnName);
+            passed += Check("DEC-123: GameSession.Rest — 지역당 1회만 마나 회복", TestRestRestoresManaOncePerLocation);
+            passed += Check("DEC-123 수정: 같은 GameSession 인스턴스로 '새 게임'을 다시 시작하면 휴식 제한이 초기화되어야 함", TestRestLimitResetsWhenSameSessionStartsNewGame);
+            passed += Check("DEC-123: 전투 중 마나 회복 스킬은 재료('마나 결정')를 소모해야 함", TestManaRecoverySkillConsumesMaterialInBattle);
 
             Debug.Log($"[RegressionSmokeTest] ALL PASSED ({passed} checks)");
         }
@@ -222,18 +237,32 @@ namespace TextRPG.EditorTools
 
         private static void TestCharacterClassStats()
         {
+            // DEC-123: 기본 스탯 변경(전사 ATK12→10, 도적 ATK14→16) + 무기 보너스(장검/단검2자루/지팡이)가
+            // 반영된 "최종" 수치. CharacterClassDatabase.cs 주석의 계산식과 정확히 일치해야 한다.
             var warrior = CharacterClassDatabase.Get("warrior");
-            Assert(warrior.BaseHp == 110 && warrior.BaseAttack == 12 && warrior.BaseDefense == 5,
-                "전사 HP110/ATK12/DEF5 (wireframes.html S-002 기준)");
+            Assert(warrior.BaseHp == 114 && warrior.BaseAttack == 13 && warrior.BaseDefense == 5,
+                $"전사 HP114/ATK13/DEF5(DEC-123)여야 하는데 HP{warrior.BaseHp}/ATK{warrior.BaseAttack}/DEF{warrior.BaseDefense}");
+            Assert(warrior.BaseMana == 10 && warrior.AttackSpeed == -1 && !warrior.HasDoubleAttack,
+                $"전사 Mana10/공격속도-1/쌍검없음(DEC-123)이어야 하는데 Mana{warrior.BaseMana}/AtkSpd{warrior.AttackSpeed}/DoubleAttack{warrior.HasDoubleAttack}");
+            Assert(warrior.ManaSkill == ManaSkillType.PowerStrike && warrior.ManaSkillCost == 5,
+                "전사 마나 스킬은 강타(비용5)여야 함");
 
             var rogue = CharacterClassDatabase.Get("rogue");
-            Assert(rogue.BaseHp == 90 && rogue.BaseAttack == 14 && rogue.BaseDefense == 2,
-                "도적 HP90/ATK14/DEF2");
+            Assert(rogue.BaseHp == 85 && rogue.BaseAttack == 16 && rogue.BaseDefense == 2,
+                $"도적 HP85/ATK16/DEF2(DEC-123)여야 하는데 HP{rogue.BaseHp}/ATK{rogue.BaseAttack}/DEF{rogue.BaseDefense}");
+            Assert(rogue.BaseMana == 15 && rogue.AttackSpeed == 3 && rogue.HasDoubleAttack,
+                $"도적 Mana15/공격속도+3/쌍검있음(DEC-123)이어야 하는데 Mana{rogue.BaseMana}/AtkSpd{rogue.AttackSpeed}/DoubleAttack{rogue.HasDoubleAttack}");
+            Assert(rogue.ManaSkill == ManaSkillType.PoisonStrike && rogue.ManaSkillCost == 7,
+                "도적 마나 스킬은 맹독 일격(비용7)이어야 함");
             Assert(rogue.CreateStartingItems().Count == 2, "도적은 단검 2자루로 시작해야 함");
 
             var mage = CharacterClassDatabase.Get("mage");
-            Assert(mage.BaseHp == 75 && mage.BaseAttack == 17 && mage.BaseDefense == 1,
-                "마법사 HP75/ATK17/DEF1");
+            Assert(mage.BaseHp == 75 && mage.BaseAttack == 19 && mage.BaseDefense == 1,
+                $"마법사 HP75/ATK19/DEF1(DEC-123)이어야 하는데 HP{mage.BaseHp}/ATK{mage.BaseAttack}/DEF{mage.BaseDefense}");
+            Assert(mage.BaseMana == 32 && mage.AttackSpeed == 1 && !mage.HasDoubleAttack,
+                $"마법사 Mana32/공격속도+1/쌍검없음(DEC-123)이어야 하는데 Mana{mage.BaseMana}/AtkSpd{mage.AttackSpeed}/DoubleAttack{mage.HasDoubleAttack}");
+            Assert(mage.ManaSkill == ManaSkillType.Fireball && mage.ManaSkillCost == 10,
+                "마법사 마나 스킬은 화염구(비용10)여야 함");
         }
 
         /// <summary>
@@ -282,7 +311,7 @@ namespace TextRPG.EditorTools
             session.SelectPendingClass("warrior");
             Assert(session.ConfirmClass(), "직업 확정이 성공해야 함");
             Assert(session.CurrentState == GameState.PLAYING, "확정 후 PLAYING이어야 함");
-            Assert(session.Player.GetMaxHp() == 110, "전사로 시작했으니 HP110이어야 함");
+            Assert(session.Player.GetMaxHp() == 114, $"전사로 시작했으니 HP114(DEC-123)여야 하는데 {session.Player.GetMaxHp()}");
             Assert(session.Inventory.GetItemCount() == 2, "전사 시작 아이템(장검) + 기본 회복물약 = 2개");
 
             // 던전 입구 -> 갈림길 -> 어두운 통로(자동 전투)
@@ -311,6 +340,315 @@ namespace TextRPG.EditorTools
             {
                 Assert(session.CurrentState == GameState.GAME_OVER, "패배 시 GAME_OVER여야 함");
             }
+        }
+
+        // ───────────────────────── 신규(DEC-123) 회귀 테스트 ─────────────────────────
+
+        private static void TestAttackSpeedDeterminesTurnOrder()
+        {
+            // 적 공격속도(5)가 플레이어 기본 공격속도(0)보다 높으면 적이 선공해야 한다.
+            var player = new Player("테스트");
+            player.SetHp(1); // 한 대만 맞아도 죽도록 만들어 "누가 먼저 때렸는지"를 명확히 구분한다.
+            var enemy = new Enemy("빠른 적", 9999, 100, 0, 0, 0) { AttackSpeed = 5 };
+            var battle = new BattleSystem(player, enemy);
+
+            var result = battle.TakeTurn(BattleSystem.ActionAttack);
+
+            Assert(result == BattleResult.PLAYER_LOSE, "적 공격속도가 더 높으면 적이 선공해 플레이어가 즉시 패배해야 함");
+            Assert(enemy.GetHp() == enemy.GetMaxHp(), "적이 선공해 플레이어가 죽었다면 플레이어는 공격 기회가 없어 적 HP는 그대로여야 함");
+        }
+
+        private static void TestPlayerActsFirstWhenFasterOrTied()
+        {
+            // 공격속도가 동률(둘 다 기본값 0)이면 플레이어가 먼저 행동해야 한다(기존 동작과의 하위호환).
+            var enemy = new Enemy("느린 적", 9999, 100, 0, 0, 0) { AttackSpeed = 0 };
+            var player = new Player("테스트");
+            player.SetAttack(10);
+            var battle = new BattleSystem(player, enemy);
+
+            int enemyHpBefore = enemy.GetHp();
+            battle.TakeTurn(BattleSystem.ActionAttack);
+
+            Assert(enemy.GetHp() < enemyHpBefore, "동률이면 플레이어가 먼저 공격해 적 HP가 줄어야 함");
+            Assert(player.GetHp() < player.GetMaxHp(), "적이 죽지 않았다면 같은 라운드에 적도 반격해야 함");
+        }
+
+        private static void TestRogueDoubleAttack()
+        {
+            var rogue = new Player("테스트", CharacterClassDatabase.Get("rogue")); // ATK16, 쌍검 패시브
+            Assert(rogue.HasDoubleAttack, "도적은 쌍검 패시브로 기본 공격이 2회 타격해야 함");
+
+            var enemy = new Enemy("더미", 9999, 0, 0, 0, 0); // 방어력 0, 반격은 무해
+            var battle = new BattleSystem(rogue, enemy);
+
+            int hpBefore = enemy.GetHp();
+            battle.TakeTurn(BattleSystem.ActionAttack);
+            int totalDamage = hpBefore - enemy.GetHp();
+
+            // ATK16 + Random(0,3) 두 번 독립 적용 => 최소 16*2=32, 최대 (16+3)*2=38
+            Assert(totalDamage >= 32 && totalDamage <= 38, $"쌍검 2회 타격 합산 데미지가 32~38 범위여야 하는데 {totalDamage}");
+        }
+
+        private static void TestManaSkillAffordability()
+        {
+            var mage = new Player("테스트", CharacterClassDatabase.Get("mage")); // Mana32, 화염구 비용10
+            var enemy = new Enemy("더미", 9999, 0, 0, 0, 0);
+            var battle = new BattleSystem(mage, enemy);
+
+            Assert(battle.CanUseManaSkill(), "마나가 충분하면 스킬 사용 가능해야 함");
+
+            mage.SpendMana(30); // 남은 마나 2 < 비용 10
+            Assert(!battle.CanUseManaSkill(), "마나가 비용보다 적으면 스킬 사용 불가해야 함");
+        }
+
+        private static void TestWarriorPowerStrikeDamage()
+        {
+            var warrior = new Player("테스트", CharacterClassDatabase.Get("warrior")); // ATK13, Mana10, 강타 비용5
+            var enemy = new Enemy("더미", 9999, 0, 0, 0, 0); // 방어력 0
+            var battle = new BattleSystem(warrior, enemy);
+
+            int hpBefore = enemy.GetHp();
+            int manaBefore = warrior.GetMana();
+            battle.TakeTurn(BattleSystem.ActionManaSkill);
+            int damage = hpBefore - enemy.GetHp();
+
+            Assert(warrior.GetMana() == manaBefore - 5, "강타는 마나 5를 소모해야 함");
+            // rawDamage=13~16, boosted=Math.Round(raw*1.5) => 20/21/22/24 중 하나
+            Assert(damage >= 19 && damage <= 24, $"강타 피해량이 예상 범위(19~24)를 벗어남: {damage}");
+        }
+
+        private static void TestMageFireballHalvesDefense()
+        {
+            var mage = new Player("테스트", CharacterClassDatabase.Get("mage")); // ATK19, Mana32, 화염구 비용10
+            var enemyHalved = new Enemy("더미", 9999, 0, 20, 0, 0); // 방어력20(짝수 - 절반이 정확히 10)
+            var battle = new BattleSystem(mage, enemyHalved);
+
+            int hpBefore = enemyHalved.GetHp();
+            battle.TakeTurn(BattleSystem.ActionManaSkill);
+            int damage = hpBefore - enemyHalved.GetHp();
+
+            // rawDamage=19~22, 방어력 절반(10) 적용 => 9~12
+            Assert(damage >= 9 && damage <= 12, $"화염구 피해량이 예상 범위(9~12)를 벗어남: {damage}");
+
+            // 비교군: 같은 방어력에 일반 공격이면 방어력 전체(20)가 적용되어 최소 피해(1~2)만 들어가야 함
+            var enemyNormal = new Enemy("더미2", 9999, 0, 20, 0, 0);
+            var battleNormal = new BattleSystem(mage, enemyNormal);
+            int hpBefore2 = enemyNormal.GetHp();
+            battleNormal.TakeTurn(BattleSystem.ActionAttack);
+            int normalDamage = hpBefore2 - enemyNormal.GetHp();
+            Assert(normalDamage >= 1 && normalDamage <= 2,
+                $"일반 공격은 방어력을 그대로 적용해 최소 피해(1~2)만 들어가야 하는데 {normalDamage}");
+        }
+
+        private static void TestRoguePoisonStrikeAppliesDotOverThreeTurns()
+        {
+            var rogue = new Player("테스트", CharacterClassDatabase.Get("rogue")); // Mana15, 맹독일격 비용7
+            var enemy = new Enemy("더미", 100, 0, 0, 0, 0); // maxHp100, 방어력0, ATK0(반격 무해)
+            var battle = new BattleSystem(rogue, enemy);
+
+            // totalDot = max(1, maxHp/10) = 10. 3틱 배분(나머지를 앞 틱부터 몰아줌) = [4,3,3], 합계 정확히 10
+            // (2026-09-08 수정: 이전에는 totalDot/3을 세 번 적용해 9(9%)로 총량이 깎이는 문제가 있었음).
+            battle.TakeTurn(BattleSystem.ActionManaSkill);
+            int round1Damage = 100 - enemy.GetHp();
+            // 1라운드: 즉시타격 1회(맹독 일격은 쌍검 패시브 미적용, ATK16~19) + 도트 1번째 틱(4)
+            Assert(round1Damage >= 16 + 4 && round1Damage <= 19 + 4,
+                $"1라운드 피해(즉시타격+도트1틱)가 예상 범위(20~23)를 벗어남: {round1Damage}");
+
+            // 이후에는 공격 없는 행동(마나 회복)만 반복해 도트만 순수하게 측정한다.
+            int hpBeforeRound2 = enemy.GetHp();
+            battle.TakeTurn(BattleSystem.ActionRecoverMana);
+            Assert(hpBeforeRound2 - enemy.GetHp() == 3, "2번째 도트 틱은 정확히 3이어야 함");
+
+            int hpBeforeRound3 = enemy.GetHp();
+            battle.TakeTurn(BattleSystem.ActionRecoverMana);
+            Assert(hpBeforeRound3 - enemy.GetHp() == 3, "3번째(마지막) 도트 틱은 정확히 3이어야 함");
+
+            int hpBeforeRound4 = enemy.GetHp();
+            battle.TakeTurn(BattleSystem.ActionRecoverMana);
+            Assert(hpBeforeRound4 - enemy.GetHp() == 0, "3턴이 지나면 도트가 더 이상 적용되지 않아야 함");
+        }
+
+        private static void TestPoisonStrikeThreeTickTotalMatchesTenPercent()
+        {
+            // maxHp=100(10/3 나누어떨어지지 않음, 배분 로직의 핵심 검증 대상)과 maxHp=55(보스 HP, 5/3도 나누어
+            // 떨어지지 않음) 둘 다에서 3틱 각각의 정확한 값과 총합이 totalDot(최대체력의 10%)과 같은지 확인한다.
+            foreach (int maxHp in new[] { 100, 55 })
+            {
+                var rogue = new Player("테스트", CharacterClassDatabase.Get("rogue"));
+                var enemy = new Enemy("더미", maxHp, 0, 0, 0, 0);
+                var battle = new BattleSystem(rogue, enemy);
+
+                int totalDot = Math.Max(1, maxHp / 10);
+                int basePerTick = totalDot / 3;
+                int remainder = totalDot % 3;
+                int expectedTick1 = basePerTick + (remainder >= 1 ? 1 : 0);
+                int expectedTick2 = basePerTick + (remainder >= 2 ? 1 : 0);
+                int expectedTick3 = basePerTick;
+                Assert(expectedTick1 + expectedTick2 + expectedTick3 == totalDot,
+                    $"maxHp={maxHp}: 배분 공식 자체가 totalDot({totalDot})과 일치해야 함(테스트 사전 검산)");
+
+                // 1라운드: 즉시타격(랜덤 16~19) + 1번째 틱(고정값 expectedTick1) — 즉시타격 성분을 역산해 범위 확인.
+                battle.TakeTurn(BattleSystem.ActionManaSkill);
+                int round1Damage = maxHp - enemy.GetHp();
+                int immediateHitComponent = round1Damage - expectedTick1;
+                Assert(immediateHitComponent >= 16 && immediateHitComponent <= 19,
+                    $"maxHp={maxHp}: 즉시타격 성분이 16~19 범위를 벗어남(1틱={expectedTick1} 가정 시 역산값 {immediateHitComponent})");
+
+                int hpBeforeTick2 = enemy.GetHp();
+                battle.TakeTurn(BattleSystem.ActionRecoverMana);
+                Assert(hpBeforeTick2 - enemy.GetHp() == expectedTick2, $"maxHp={maxHp}: 2번째 틱은 {expectedTick2}여야 함");
+
+                int hpBeforeTick3 = enemy.GetHp();
+                battle.TakeTurn(BattleSystem.ActionRecoverMana);
+                Assert(hpBeforeTick3 - enemy.GetHp() == expectedTick3, $"maxHp={maxHp}: 3번째 틱은 {expectedTick3}이어야 함");
+            }
+        }
+
+        private static void TestManaDoesNotAutoRestoreBetweenBattles()
+        {
+            var session = new GameSession();
+            session.BeginNewGameFlow();
+            session.SelectPendingClass("mage");
+            session.ConfirmClass();
+
+            session.Player.SpendMana(20); // 32 -> 12
+            int manaBeforeNewBattle = session.Player.GetMana();
+
+            // 새 BattleSystem(=새 전투)을 만들어도 마나가 자동으로 풀회복되면 안 된다(DEC-123 수정 — 이월).
+            var enemy = new Enemy("더미", 10, 0, 0, 0, 0);
+            var _ = new BattleSystem(session.Player, enemy);
+
+            Assert(session.Player.GetMana() == manaBeforeNewBattle,
+                $"새 전투를 시작해도 마나가 자동 회복되면 안 되는데 {session.Player.GetMana()}(기대값 {manaBeforeNewBattle})");
+        }
+
+        private static int FindItemIndexByName(GameSession session, string name)
+        {
+            for (int i = 0; i < session.Inventory.GetItemCount(); i++)
+            {
+                if (session.Inventory.GetItem(i).GetName() == name)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        private static void TestUseItemRestoresHpOrManaBasedOnName()
+        {
+            var session = new GameSession();
+            session.BeginNewGameFlow();
+            session.SelectPendingClass("mage");
+            session.ConfirmClass();
+
+            int weaponIndex = FindItemIndexByName(session, "지팡이");
+            Assert(weaponIndex >= 0, "시작 무기(지팡이)가 인벤토리에 있어야 함");
+            var notUsable = session.UseItem(weaponIndex);
+            Assert(notUsable == ItemUseResult.NotUsable, "POTION이 아닌 아이템은 사용할 수 없어야 함(NotUsable)");
+
+            int hpPotionIndex = FindItemIndexByName(session, "회복 물약");
+            Assert(hpPotionIndex >= 0, "기본 회복 물약이 시작 인벤토리에 있어야 함");
+            session.Player.SetHp(10);
+            int countBefore = session.Inventory.GetItemCount();
+            var hpResult = session.UseItem(hpPotionIndex);
+            Assert(hpResult == ItemUseResult.Success, "회복 물약 사용은 성공해야 함");
+            Assert(session.Player.GetHp() == 40, $"체력 10+30=40이어야 하는데 {session.Player.GetHp()}");
+            Assert(session.Inventory.GetItemCount() == countBefore - 1, "사용한 아이템은 인벤토리에서 제거되어야 함");
+
+            session.Inventory.AddItem(new Item(CharacterClassDatabase.ManaPotionName, ItemType.POTION, 25, 40, "마나를 25 회복합니다."));
+            int manaPotionIndex = FindItemIndexByName(session, CharacterClassDatabase.ManaPotionName);
+            session.Player.SpendMana(30); // 32 -> 2
+            int hpSnapshot = session.Player.GetHp();
+            var manaResult = session.UseItem(manaPotionIndex);
+            Assert(manaResult == ItemUseResult.Success, "마나 물약 사용은 성공해야 함");
+            Assert(session.Player.GetMana() == 27, $"마나 2+25=27이어야 하는데 {session.Player.GetMana()}");
+            Assert(session.Player.GetHp() == hpSnapshot, "마나 물약은 HP에 영향을 주면 안 됨");
+
+            var notFound = session.UseItem(999);
+            Assert(notFound == ItemUseResult.NotFound, "존재하지 않는 인덱스는 NotFound여야 함");
+        }
+
+        private static void TestRestRestoresManaOncePerLocation()
+        {
+            var session = new GameSession();
+            session.BeginNewGameFlow();
+            session.SelectPendingClass("mage");
+            session.ConfirmClass();
+
+            session.Player.SpendMana(32); // 마나 0
+            Assert(session.CanRestHere(), "처음에는 현재 지역에서 휴식 가능해야 함");
+
+            bool rested = session.Rest();
+            Assert(rested, "휴식은 처음에는 성공해야 함");
+            Assert(session.Player.GetMana() == 13, $"최대마나 32의 40%(반올림 13)여야 하는데 {session.Player.GetMana()}");
+
+            Assert(!session.CanRestHere(), "같은 지역에서는 다시 휴식할 수 없어야 함(지역당 1회 제한)");
+            bool restedAgain = session.Rest();
+            Assert(!restedAgain, "같은 지역에서 두 번째 휴식 시도는 실패해야 함");
+            Assert(session.Player.GetMana() == 13, "휴식 실패 시 마나가 추가로 회복되면 안 됨");
+
+            session.ChooseLocationAction(1); // 던전 입구 -> 갈림길
+            Assert(session.CanRestHere(), "다른 지역으로 이동하면 다시 휴식 가능해야 함");
+        }
+
+        /// <summary>
+        /// 2026-09-08 review-verify-agent Major 확인 회귀 재현 테스트: GameBootstrap이 GameSession을
+        /// 앱 실행 중 단 한 번만 생성하고 "새 게임"도 같은 인스턴스를 재사용하므로(TitlePanelController),
+        /// ConfirmClass()가 restedLocationIndices를 Clear()하지 않으면 이전 회차에 이미 휴식한 지역에서
+        /// 새 캐릭터가 "휴식하기" 버튼을 영영 볼 수 없는 회귀가 생긴다. 이 테스트는 반드시 "새 GameSession을
+        /// 새로 만들지 않고" 같은 인스턴스에 대해 Rest() -> ConfirmClass()(새 게임 재시작 시뮬레이션) ->
+        /// CanRestHere()가 다시 true인지를 확인해야 실제 버그를 재현한다(기존 테스트들처럼 매번
+        /// new GameSession()을 새로 만들면 이 세션-재사용 시나리오를 커버하지 못함).
+        /// </summary>
+        private static void TestRestLimitResetsWhenSameSessionStartsNewGame()
+        {
+            var session = new GameSession(); // GameBootstrap과 동일하게 앱 생명주기 동안 단 하나만 생성한다고 가정
+            session.BeginNewGameFlow();
+            session.SelectPendingClass("mage");
+            session.ConfirmClass();
+
+            Assert(session.CanRestHere(), "1회차 시작 시점에는 현재 지역에서 휴식 가능해야 함");
+            bool rested = session.Rest();
+            Assert(rested, "1회차 휴식은 성공해야 함");
+            Assert(!session.CanRestHere(), "1회차에서 휴식한 직후에는 같은 지역에서 다시 휴식할 수 없어야 함");
+
+            // 같은 GameSession 인스턴스로 "새 게임"을 다시 시작한다(앱 재시작 없이 타이틀 -> 새 게임 -> 직업 확정).
+            session.BeginNewGameFlow();
+            session.SelectPendingClass("warrior");
+            bool confirmed = session.ConfirmClass();
+            Assert(confirmed, "2회차 직업 확정도 성공해야 함");
+
+            Assert(session.CanRestHere(),
+                "2회차(새 게임)는 1회차의 휴식 이력과 무관하게 던전 입구에서 휴식 가능해야 함(ConfirmClass가 restedLocationIndices를 초기화해야 함)");
+        }
+
+        private static void TestManaRecoverySkillConsumesMaterialInBattle()
+        {
+            var session = new GameSession();
+            session.BeginNewGameFlow();
+            session.SelectPendingClass("mage");
+            session.ConfirmClass();
+
+            Assert(!session.HasManaRecoveryMaterial(), "초기에는 마나 결정을 갖고 있지 않아야 함");
+
+            bool triedWithoutMaterial = session.TryUseManaRecoverySkillInBattle(out _);
+            Assert(!triedWithoutMaterial, "재료가 없으면 마나 회복 스킬 사용이 실패해야 함");
+
+            session.Inventory.AddItem(new Item(CharacterClassDatabase.ManaRecoveryMaterialName, ItemType.CONSUMABLE, 1, 20, "설명"));
+            Assert(session.HasManaRecoveryMaterial(), "재료를 얻으면 감지되어야 함");
+
+            session.ChooseLocationAction(1); // 던전 입구 -> 갈림길
+            session.ChooseLocationAction(2); // 오른쪽 통로 -> 어두운 통로, 고블린과 자동 전투
+            Assert(session.CurrentState == GameState.BATTLE, "고블린과 전투가 시작되어야 함");
+
+            session.Player.SpendMana(session.Player.GetMana()); // 마나 0으로
+            int itemCountBefore = session.Inventory.GetItemCount();
+
+            bool used = session.TryUseManaRecoverySkillInBattle(out BattleResult? battleResult);
+            Assert(used, "재료가 있으면 마나 회복 스킬 사용이 성공해야 함");
+            Assert(session.Inventory.GetItemCount() == itemCountBefore - 1, "재료 아이템이 소모되어야 함");
+            Assert(session.Player.GetMana() > 0, "마나 회복 스킬 사용 후 마나가 0보다 커야 함");
+            Assert(!session.HasManaRecoveryMaterial(), "재료를 소모한 뒤에는 더 이상 감지되면 안 됨");
         }
     }
 }

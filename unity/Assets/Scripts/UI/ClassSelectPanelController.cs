@@ -55,7 +55,9 @@ namespace TextRPG.UI
                 if (cls == null) continue;
 
                 card.nameText.text = cls.DisplayName;
-                card.statsText.text = $"HP {cls.BaseHp}\nATK {cls.BaseAttack}\nDEF {cls.BaseDefense}";
+                card.statsText.text =
+                    $"HP {cls.BaseHp}\nATK {cls.BaseAttack}\nDEF {cls.BaseDefense}\n" +
+                    $"Mana {cls.BaseMana}\n공격속도 {cls.AttackSpeed}";
                 var items = cls.CreateStartingItems();
                 card.itemsText.text = string.Join(", ", items.Select(i => i.GetName())
                     .GroupBy(n => n)

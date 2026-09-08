@@ -14,6 +14,7 @@
  *   이 클래스에 넣지 않고 Persistence/SaveSystem.cs로 분리했다(순수성 유지).
  */
 
+using System;
 using System.Collections.Generic;
 
 namespace TextRPG.GameLogic
@@ -24,6 +25,14 @@ namespace TextRPG.GameLogic
         ShowStatus,     // "상태를 확인한다" — View가 상태창/인벤토리 오버레이를 띄워야 함
         SaveAndQuit,    // "저장하고 종료" — View가 SaveSystem으로 파일을 써야 함
         None            // 아무 효과 없음(잘못된 choice 등)
+    }
+
+    /// <summary>신규(DEC-123): 탐색 화면 "아이템 사용"의 결과.</summary>
+    public enum ItemUseResult
+    {
+        Success,
+        NotFound,
+        NotUsable
     }
 
     public class GameSession
@@ -43,6 +52,17 @@ namespace TextRPG.GameLogic
         public CharacterClass PendingClass { get; private set; }
         public BattleSystem CurrentBattle { get; private set; }
         public Enemy CurrentEnemy { get; private set; }
+
+        // 신규(DEC-123): "휴식하기"를 이미 사용한 지역 인덱스 집합(지역당 1회 제한). 세이브 파일에는 포함하지
+        // 않고(단순함 우선), 대신 ConfirmClass()/ResumeFromLoadedState() 양쪽에서 매번 Clear()한다 —
+        // GameBootstrap이 GameSession을 앱 실행 중 단 한 번만 생성해 "새 게임"도 같은 인스턴스를 재사용하므로,
+        // 여기서 Clear()하지 않으면 이전 회차에 이미 휴식한 지역에서 새 캐릭터가 휴식하기 버튼을 영영 못 보는
+        // 회귀가 생긴다(2026-09-08 review-verify-agent Major로 확인되어 수정). 알려진 한계는 06_open_questions.md
+        // DEC-123 참조(세이브를 재로드할 때마다 초기화되는 아주 경미한 파밍 경로).
+        private readonly HashSet<int> restedLocationIndices = new HashSet<int>();
+
+        /// <summary>신규(DEC-123): "휴식하기" 1회당 회복되는 비율(최대 마나 대비). 30~50% 범위 내 40%로 결정.</summary>
+        private const double RestManaRecoverRatio = 0.4;
 
         /// <summary>SCR-001 "새 게임" → SCR-002(CLASS_SELECT)로 전이(STATE-101).</summary>
         public void BeginNewGameFlow()
@@ -88,6 +108,7 @@ namespace TextRPG.GameLogic
             GameRound = 0;
             ArmoryLooted = false;
             GoblinDefeated = false;
+            restedLocationIndices.Clear(); // DEC-123 수정: 새 게임 확정마다 휴식 제한을 반드시 초기화한다.
             CurrentState = GameState.PLAYING;
             return true;
         }
@@ -103,6 +124,7 @@ namespace TextRPG.GameLogic
             GameRound = gameRound;
             ArmoryLooted = armoryLooted;
             GoblinDefeated = goblinDefeated;
+            restedLocationIndices.Clear(); // DEC-123 수정: 이어하기(로드)마다도 휴식 제한을 초기화한다.
             CurrentState = GameState.PLAYING;
         }
 
@@ -168,6 +190,10 @@ namespace TextRPG.GameLogic
                         {
                             Player.SetAttack(Player.GetAttack() + 4);
                             Inventory.AddItem(new Item("작은 회복 물약", ItemType.POTION, 20, 30, "체력을 20 회복합니다."));
+                            // 신규(DEC-123): 마나 물약 — "아이템 사용" 시 이름에 "마나"가 포함되어 있으면
+                            // HP 대신 마나를 value만큼 회복한다(UseItem 참조).
+                            Inventory.AddItem(new Item(CharacterClassDatabase.ManaPotionName, ItemType.POTION, 25, 40,
+                                "마나를 25 회복합니다."));
                             ArmoryLooted = true;
                         }
                         Map.MoveToLocation(3);
@@ -263,6 +289,10 @@ namespace TextRPG.GameLogic
                 else
                 {
                     GoblinDefeated = true;
+                    // 신규(DEC-123): 고블린 처치 보상으로 "마나 결정"(재료) 1개 지급 — 보스전 전에
+                    // 전투 중 "마나 회복" 행동을 최소 1번은 쓸 수 있게 하는 자연스러운 지급 지점.
+                    Inventory.AddItem(new Item(CharacterClassDatabase.ManaRecoveryMaterialName, ItemType.CONSUMABLE, 1, 20,
+                        "전투 중 '마나 회복' 행동에 사용하는 소모 재료입니다. 사용 시 최대 마나의 45%를 회복합니다."));
                     Map.MoveToLocation(4);
                     CurrentState = GameState.PLAYING;
                 }
@@ -308,6 +338,112 @@ namespace TextRPG.GameLogic
         public void IncrementRound()
         {
             GameRound++;
+        }
+
+        // ───────────────────────── 신규(DEC-123): 마나 회복 경제 ─────────────────────────
+        // 마나는 HP처럼 지속 자원으로 취급한다 — 전투가 끝나도 자동으로 풀회복되지 않고,
+        // 아래 3가지 경로로만 회복된다: ① 마나 물약(아이템 사용), ② 휴식하기(탐색 화면, 지역당 1회),
+        // ③ 마나 회복(전투 중, 마나가 아니라 "마나 결정" 재료 소모).
+
+        /// <summary>
+        /// 신규(DEC-123): 인벤토리의 POTION 아이템을 사용한다. 이름에 "마나"가 포함되어 있으면 마나를,
+        /// 아니면 HP를 value만큼 회복하고 아이템을 소모한다(범용 아이템 효과 시스템이 아니라 이 최소
+        /// 분기만 지원 — 과설계 금지 원칙에 따름).
+        /// </summary>
+        public ItemUseResult UseItem(int inventoryIndex)
+        {
+            var item = Inventory?.GetItem(inventoryIndex);
+            if (item == null)
+            {
+                return ItemUseResult.NotFound;
+            }
+
+            if (item.GetItemType() != ItemType.POTION)
+            {
+                return ItemUseResult.NotUsable;
+            }
+
+            if (item.GetName().Contains("마나"))
+            {
+                Player.RecoverMana(item.GetValue());
+            }
+            else
+            {
+                Player.SetHp(Player.GetHp() + item.GetValue());
+            }
+
+            Inventory.RemoveItem(inventoryIndex);
+            return ItemUseResult.Success;
+        }
+
+        /// <summary>신규(DEC-123): 현재 지역에서 아직 "휴식하기"를 쓰지 않았는지(지역당 1회 제한).</summary>
+        public bool CanRestHere()
+        {
+            return CurrentState == GameState.PLAYING && !restedLocationIndices.Contains(Map.GetCurrentLocationIndex());
+        }
+
+        /// <summary>신규(DEC-123): 휴식하기 — 최대 마나의 40%를 즉시 회복한다. 지역당 1회만 가능.</summary>
+        public bool Rest()
+        {
+            if (!CanRestHere())
+            {
+                return false;
+            }
+
+            int amount = Math.Max(1, (int)Math.Round(Player.GetMaxMana() * RestManaRecoverRatio));
+            Player.RecoverMana(amount);
+            restedLocationIndices.Add(Map.GetCurrentLocationIndex());
+            return true;
+        }
+
+        /// <summary>신규(DEC-123): 전투 중 "마나 회복"에 쓸 재료("마나 결정")를 인벤토리가 갖고 있는지.</summary>
+        public bool HasManaRecoveryMaterial()
+        {
+            return FindManaRecoveryMaterialIndex() >= 0;
+        }
+
+        private int FindManaRecoveryMaterialIndex()
+        {
+            if (Inventory == null)
+            {
+                return -1;
+            }
+
+            for (int i = 0; i < Inventory.GetItemCount(); i++)
+            {
+                var item = Inventory.GetItem(i);
+                if (item.GetItemType() == ItemType.CONSUMABLE && item.GetName() == CharacterClassDatabase.ManaRecoveryMaterialName)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// 신규(DEC-123): 전투 중 "마나 회복" 행동 — 재료("마나 결정") 1개를 소모하고 BattleSystem에
+        /// ActionRecoverMana 턴을 진행시킨다. 재료가 없으면 아무 것도 소모하지 않고 false를 반환한다
+        /// (UI가 "재료가 없습니다" 안내 후 다시 선택하게 해야 함).
+        /// </summary>
+        public bool TryUseManaRecoverySkillInBattle(out BattleResult? battleResult)
+        {
+            battleResult = null;
+
+            if (CurrentBattle == null)
+            {
+                return false;
+            }
+
+            int index = FindManaRecoveryMaterialIndex();
+            if (index < 0)
+            {
+                return false;
+            }
+
+            Inventory.RemoveItem(index);
+            battleResult = ProcessBattleTurn(BattleSystem.ActionRecoverMana);
+            return true;
         }
     }
 }

@@ -44,6 +44,12 @@ namespace TextRPG.Persistence
         public int experience;
         public int gold;
 
+        // 신규 필드(DEC-123, Unity 한정) — 마나는 HP처럼 전투 간 이월되는 지속 자원이라 저장이 필요하다.
+        // 구버전(이 필드가 없는 version=2) 세이브를 읽으면 JsonUtility가 0/0으로 채우는데,
+        // Player.LoadState()가 max_mana<=0이면 클래스 기반 기본값을 그대로 유지하도록 방어해 둠.
+        public int mana;
+        public int max_mana;
+
         public int location;
         public int game_round;
         public int armory_looted;   // 0/1 (원본과 동일하게 bool 대신 int로 저장)

@@ -23,6 +23,13 @@ namespace TextRPG.GameLogic
         /// <summary>신규(DEC-114): 전투 시작 시 무작위로 고를 수 있는 초상화 후보 목록. 스탯과 무관.</summary>
         public string[] PortraitVariants { get; set; } = Array.Empty<string>();
 
+        /// <summary>
+        /// 신규(DEC-123): 공격속도. 콘솔 원본/기존 Enemy 생성자에는 없던 개념이라 기본값 0을 준다
+        /// (BattleSystem이 매 턴 player.GetAttackSpeed()와 이 값을 비교해 선공을 정함 — 기존 적은
+        /// 전부 0이므로, 공격속도가 음수인 전사만 적보다 늦게 행동하고 나머지는 그대로 선공 유지).
+        /// </summary>
+        public int AttackSpeed { get; set; } = 0;
+
         public Enemy(string enemyName, int hp, int atk, int def, int exp, int gold)
         {
             name = enemyName;
@@ -56,5 +63,17 @@ namespace TextRPG.GameLogic
         }
 
         public bool IsAlive() => hp > 0;
+
+        /// <summary>
+        /// 신규(DEC-123): 마법사 "화염구" 전용 피해 계산 — 방어력을 절반만(내림) 적용한다.
+        /// 콘솔 원본에는 없는 메서드. 기존 TakeDamage 공식(max(1, dmg-def))에서 def만 절반으로 바꾼 변형이다.
+        /// </summary>
+        public int TakeDamageWithHalvedDefense(int damage)
+        {
+            int halvedDefense = defense / 2;
+            int finalDamage = Math.Max(1, damage - halvedDefense);
+            hp = Math.Max(0, hp - finalDamage);
+            return finalDamage;
+        }
     }
 }

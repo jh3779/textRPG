@@ -71,4 +71,16 @@ namespace TextRPG.GameLogic
         POTION,
         CONSUMABLE
     }
+
+    /// <summary>
+    /// 신규(DEC-123, 콘솔 원본에는 없음): 직업별 마나 소모 스킬 종류.
+    /// 전사=강타(피해 1.5배), 도적=맹독 일격(즉시타격+3턴 도트), 마법사=화염구(방어력 절반 적용).
+    /// BattleSystem.UseManaSkill()이 이 값에 따라 분기한다.
+    /// </summary>
+    public enum ManaSkillType
+    {
+        PowerStrike,
+        PoisonStrike,
+        Fireball
+    }
 }

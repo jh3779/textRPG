@@ -86,7 +86,8 @@ namespace TextRPG.UI
             SetBackground(location.Name);
             statusLineText.text =
                 $"[라운드 {session.GameRound}] {CharacterClassDatabase.Get(session.Player.ClassId)?.DisplayName ?? session.Player.GetName()} " +
-                $"HP {session.Player.GetHp()}/{session.Player.GetMaxHp()} · ATK {session.Player.GetAttack()} · Gold {session.Player.GetGold()}";
+                $"HP {session.Player.GetHp()}/{session.Player.GetMaxHp()} · ATK {session.Player.GetAttack()} · " +
+                $"Mana {session.Player.GetMana()}/{session.Player.GetMaxMana()} · Gold {session.Player.GetGold()}";
             titleText.text = location.Name;
             bodyText.text = location.Description;
 
@@ -97,6 +98,38 @@ namespace TextRPG.UI
                 int choiceNumber = i + 1;
                 CreateButton($"{choiceNumber}. {choices[i]}", () => OnLocationChoice(choiceNumber));
             }
+
+            // 신규(DEC-123): "아이템 사용"(POTION만) · "휴식하기"(마나 회복, 지역당 1회) —
+            // 기존 지역별 번호 선택지 체계를 건드리지 않도록 별도의 항상-표시 버튼으로 추가한다.
+            for (int i = 0; i < session.Inventory.GetItemCount(); i++)
+            {
+                var item = session.Inventory.GetItem(i);
+                if (item.GetItemType() != ItemType.POTION)
+                {
+                    continue;
+                }
+
+                int index = i;
+                string effect = item.GetName().Contains("마나") ? $"마나 +{item.GetValue()}" : $"HP +{item.GetValue()}";
+                CreateButton($"아이템 사용: {item.GetName()} ({effect})", () => OnUseItemClicked(index));
+            }
+
+            if (session.CanRestHere())
+            {
+                CreateButton("휴식하기 (마나 회복)", OnRestClicked);
+            }
+        }
+
+        private void OnUseItemClicked(int inventoryIndex)
+        {
+            bootstrap.Session.UseItem(inventoryIndex);
+            RenderLocation();
+        }
+
+        private void OnRestClicked()
+        {
+            bootstrap.Session.Rest();
+            RenderLocation();
         }
 
         private void OnLocationChoice(int choice)
@@ -132,12 +165,26 @@ namespace TextRPG.UI
             statusLineText.text = $"--- 전투 {battle.Round}턴 ---";
             titleText.text = $"{session.Player.GetName()} VS {enemy.GetName()}";
             bodyText.text =
-                $"{session.Player.GetName()} HP {session.Player.GetHp()}/{session.Player.GetMaxHp()}\n" +
+                $"{session.Player.GetName()} HP {session.Player.GetHp()}/{session.Player.GetMaxHp()} · " +
+                $"Mana {session.Player.GetMana()}/{session.Player.GetMaxMana()}\n" +
                 $"{enemy.GetName()} HP {enemy.GetHp()}/{enemy.GetMaxHp()}" +
                 (string.IsNullOrEmpty(lastLog) ? "" : $"\n\n{lastLog}");
 
             ClearButtons();
-            CreateButton("1. 공격한다", () => OnBattleAction(1));
+            CreateButton("1. 일반 공격", () => OnBattleAction(1));
+
+            // 신규(DEC-123): 마나가 부족하면 버튼 자체를 노출하지 않는다("비활성화" 요구사항의 최소 구현).
+            if (battle.CanUseManaSkill())
+            {
+                CreateButton($"3. {battle.GetManaSkillLabel()}", () => OnBattleAction(3));
+            }
+
+            // 신규(DEC-123): 재료("마나 결정")가 없으면 버튼을 노출하지 않는다.
+            if (session.HasManaRecoveryMaterial())
+            {
+                CreateButton("4. 마나 회복 (재료 소모)", () => OnBattleAction(4));
+            }
+
             CreateButton("2. 도망친다", () => OnBattleAction(2));
         }
 
@@ -146,11 +193,25 @@ namespace TextRPG.UI
             var session = bootstrap.Session;
             var enemyName = session.CurrentEnemy.GetName();
 
-            var result = session.ProcessBattleTurn(action);
+            BattleResult? result;
+
+            if (action == BattleSystem.ActionRecoverMana)
+            {
+                if (!session.TryUseManaRecoverySkillInBattle(out result))
+                {
+                    // 재료가 없는 상태에서 버튼이 눌린 경우(방어적 처리) — 안내 후 다시 선택하게 한다.
+                    RenderBattle("재료(마나 결정)가 없습니다.");
+                    return;
+                }
+            }
+            else
+            {
+                result = session.ProcessBattleTurn(action);
+            }
 
             if (!result.HasValue)
             {
-                RenderBattle(action == 1 ? $"{enemyName}에게 공격을 가했다!" : "도망에 실패했다!");
+                RenderBattle(GetActionLog(action, enemyName));
                 return;
             }
 
@@ -161,6 +222,21 @@ namespace TextRPG.UI
                 case BattleResult.PLAYER_FLEE:
                     Refresh();
                     break;
+            }
+        }
+
+        private static string GetActionLog(int action, string enemyName)
+        {
+            switch (action)
+            {
+                case BattleSystem.ActionAttack:
+                    return $"{enemyName}에게 공격을 가했다!";
+                case BattleSystem.ActionManaSkill:
+                    return $"{enemyName}에게 마나 스킬을 사용했다!";
+                case BattleSystem.ActionRecoverMana:
+                    return "마나를 회복했다!";
+                default:
+                    return "도망에 실패했다!";
             }
         }
 
@@ -187,8 +263,10 @@ namespace TextRPG.UI
             sb.AppendLine($"이름: {p.GetName()}");
             sb.AppendLine($"레벨: {p.GetLevel()}");
             sb.AppendLine($"HP: {p.GetHp()}/{p.GetMaxHp()}");
+            sb.AppendLine($"마나: {p.GetMana()}/{p.GetMaxMana()}");
             sb.AppendLine($"공격력: {p.GetAttack()}");
             sb.AppendLine($"방어력: {p.GetDefense()}");
+            sb.AppendLine($"공격속도: {p.GetAttackSpeed()}");
             sb.AppendLine($"경험치: {p.GetExperience()}/{p.GetLevel() * 100}");
             sb.AppendLine($"골드: {p.GetGold()}");
             sb.AppendLine();

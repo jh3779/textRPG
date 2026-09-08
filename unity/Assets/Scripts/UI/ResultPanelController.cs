@@ -39,7 +39,8 @@ namespace TextRPG.UI
                 : "체력이 0이 되어 모험이 끝났습니다.";
 
             string className = CharacterClassDatabase.Get(p.ClassId)?.DisplayName ?? "모험가";
-            statsText.text = $"{className} · Lv{p.GetLevel()} · HP{p.GetHp()}/{p.GetMaxHp()} · ATK{p.GetAttack()} · Gold{p.GetGold()}";
+            statsText.text = $"{className} · Lv{p.GetLevel()} · HP{p.GetHp()}/{p.GetMaxHp()} · " +
+                $"Mana{p.GetMana()}/{p.GetMaxMana()} · ATK{p.GetAttack()} · Gold{p.GetGold()}";
         }
 
         private void OnBackToTitleClicked()
