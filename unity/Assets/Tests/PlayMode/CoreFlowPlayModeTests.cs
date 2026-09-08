@@ -402,6 +402,17 @@ namespace TextRPG.Tests.PlayMode
                 Assert.IsNotNull(enemyPortraitImage.sprite,
                     $"적 포트레이트 스프라이트가 null입니다(변종 파일: {(enemy.PortraitVariants != null && enemy.PortraitVariants.Length > 0 ? enemy.PortraitVariants[0] : "없음")}).");
 
+                // DEC-131 후속 수정: 사용자가 전투 화면 스크린샷으로 적 포트레이트가 화면 하단에
+                // 잘리고 액션 버튼(ButtonRow)과 겹쳐 보인다고 실제로 보고했다 — ButtonRow 배경은
+                // 완전 투명(CreateButton의 배경색 alpha=0)이라 겹치면 몬스터 그림이 버튼 뒤로 그대로
+                // 비쳐 보인다. 좌표를 하드코딩 비교하지 않고, 두 RectTransform의 세로 범위(pivot
+                // 0.5 기준 anchoredPosition.y ± sizeDelta.y/2)가 서로 겹치지 않는지로 검증한다.
+                var enemyPortraitRT = enemyPortraitImage.GetComponent<RectTransform>();
+                var buttonRowRT = buttonRow.GetComponent<RectTransform>();
+                Assert.IsFalse(VerticalRangesOverlap(enemyPortraitRT, buttonRowRT),
+                    $"적 포트레이트가 액션 버튼 행(ButtonRow)과 겹칩니다 " +
+                    $"(EnemyPortrait {DescribeVerticalRange(enemyPortraitRT)}, ButtonRow {DescribeVerticalRange(buttonRowRT)}).");
+
                 // DEC-123: 마나가 충분(전사 마나10 >= 강타 비용5)하면 마나 스킬 버튼("3. 강타 (마나 5)")이 실제로 나타나야 함
                 var manaSkillButton = FindButtonByLabelPrefix(buttonRow, "3.");
                 Assert.IsNotNull(manaSkillButton, "마나가 충분한데도 마나 스킬 버튼('3. 강타')이 보이지 않습니다.");
@@ -544,6 +555,194 @@ namespace TextRPG.Tests.PlayMode
             finally
             {
                 Application.logMessageReceived -= ConsumeKnownEditorNoiseIfMatched;
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 테스트 I: 씬의 실제 한글 TMP 텍스트가 "깨지지 않고 렌더링 가능한 폰트"를
+        // 실제로 갖는지(DEC-131 후속 — 사용자가 실제 빌드에서 "글씨가 다 깨짐"으로
+        // 보고한 문제, LiberationSans SDF는 라틴 전용이라 한글이 tofu(□)로 대체됨)
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator I_KoreanText_ResolvesToFontsThatActuallyHaveHangulGlyphs()
+        {
+            bool hadExisting = false;
+            string backup = null;
+            try
+            {
+                backup = BackupSaveFileIfExists(out hadExisting);
+                DeleteSaveFileIfExists();
+
+                int checkedTextCount = 0;
+                int checkedCharCount = 0;
+                var missing = new System.Collections.Generic.List<string>();
+
+                yield return LoadMainScene();
+
+                // 타이틀 화면(로드 직후 활성 상태)
+                CheckActiveKoreanText(missing, ref checkedTextCount, ref checkedCharCount);
+
+                yield return SelectWarriorAndConfirm();
+
+                // 직업 선택 화면 클릭 도중 잠깐 활성화됐던 화면은 SelectWarriorAndConfirm 내부에서
+                // 이미 지나갔으므로, 여기서는 그 결과로 지금 활성화된 탐색 화면을 확인한다.
+                CheckActiveKoreanText(missing, ref checkedTextCount, ref checkedCharCount);
+
+                // 던전 입구(0)→갈림길(1)→오른쪽 통로(고블린 전투)까지 진행해 탐색·전투 화면의
+                // 한글 TMP_Text(동적 생성 버튼 라벨 포함)까지 커버한다.
+                var exploreController = FindController<ExplorePanelController>();
+                var buttonRow = exploreController.transform.Find("ButtonRow");
+                FindButtonByLabelPrefix(buttonRow, "1.")?.onClick.Invoke();
+                yield return null;
+                CheckActiveKoreanText(missing, ref checkedTextCount, ref checkedCharCount);
+
+                FindButtonByLabelPrefix(buttonRow, "2.")?.onClick.Invoke();
+                yield return null;
+                CheckActiveKoreanText(missing, ref checkedTextCount, ref checkedCharCount);
+
+                // ResultPanel(승리/패배 화면)은 이번 시나리오에서 자연스럽게 도달하지 않으므로,
+                // 테스트 H와 동일한 방식(패널을 직접 SetActive(true))으로 강제 활성화해 Awake/OnEnable을
+                // 트리거한 뒤 그 안의 한글 텍스트도 함께 검증한다.
+                var resultController = FindController<ResultPanelController>();
+                bool resultWasActive = resultController.gameObject.activeSelf;
+                resultController.gameObject.SetActive(true);
+                yield return null;
+                CheckActiveKoreanText(missing, ref checkedTextCount, ref checkedCharCount);
+                resultController.gameObject.SetActive(resultWasActive);
+
+                Assert.Greater(checkedTextCount, 0,
+                    "이번에 진행한 화면들에서 비ASCII(한글 등) 텍스트를 가진 TMP_Text를 하나도 못 찾았습니다 — " +
+                    "테스트가 실제로 아무것도 검증하지 못한 것일 수 있습니다.");
+                Assert.Greater(checkedCharCount, 0);
+
+                Assert.IsEmpty(missing,
+                    $"다음 문자들이 실제 렌더링에 쓰이는 폰트(폴백 포함)에 글리프가 없어 깨져 보일 것입니다: " +
+                    string.Join(", ", missing));
+            }
+            finally
+            {
+                RestoreSaveFile(hadExisting, backup);
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 테스트 J: 직업 선택 카드의 이름(Name)/스탯(Stats)/아이템(Items) 텍스트가 서로 겹치지
+        // 않는지(DEC-131 후속 — 사용자가 실제 스크린샷으로 "전사"와 "HP114..."가 뒤엉켜 보이는
+        // 것을 확인해 보고한 레이아웃 버그. ProjectSetupTool.BuildClassSelectPanel의
+        // anchoredPosition 겹침이 원인이었다). 씬을 다시 생성해도 이 겹침이 재발하면 이 테스트가
+        // 잡아내도록, 실제 좌표값을 하드코딩해 비교하는 대신 RectTransform의 계산된 세로 범위를
+        // 서로 비교한다.
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator J_ClassSelectCards_NameStatsItemsText_DoNotOverlapVertically()
+        {
+            yield return LoadMainScene();
+
+            var classSelectController = FindController<ClassSelectPanelController>();
+            Assert.IsNotNull(classSelectController, "ClassSelectPanelController를 찾을 수 없습니다.");
+
+            string[] ids = { "warrior", "rogue", "mage" };
+            int checkedCards = 0;
+
+            foreach (var id in ids)
+            {
+                var card = classSelectController.transform.Find($"Card_{id}");
+                if (card == null)
+                {
+                    continue;
+                }
+
+                var nameRT = card.Find("Name").GetComponent<RectTransform>();
+                var statsRT = card.Find("Stats").GetComponent<RectTransform>();
+                var itemsRT = card.Find("Items").GetComponent<RectTransform>();
+
+                Assert.IsFalse(VerticalRangesOverlap(nameRT, statsRT),
+                    $"'{id}' 카드에서 이름(Name) 텍스트와 스탯(Stats) 텍스트가 세로로 겹칩니다 " +
+                    $"(Name {DescribeVerticalRange(nameRT)}, Stats {DescribeVerticalRange(statsRT)}).");
+
+                Assert.IsFalse(VerticalRangesOverlap(statsRT, itemsRT),
+                    $"'{id}' 카드에서 스탯(Stats) 텍스트와 아이템(Items) 텍스트가 세로로 겹칩니다 " +
+                    $"(Stats {DescribeVerticalRange(statsRT)}, Items {DescribeVerticalRange(itemsRT)}).");
+
+                checkedCards++;
+            }
+
+            Assert.AreEqual(3, checkedCards, "직업 카드 3개(전사/도적/마법사) 전부 확인했어야 합니다.");
+        }
+
+        /// <summary>
+        /// pivot이 (0.5, 0.5)인 RectTransform 기준, anchoredPosition.y와 sizeDelta.y로부터
+        /// [하단, 상단] 세로 범위를 계산한다. ProjectSetupTool의 카드 자식 텍스트들은 전부
+        /// 기본 pivot(0.5,0.5)으로 생성되므로 이 가정이 유효하다.
+        /// </summary>
+        private static (float bottom, float top) GetVerticalRange(RectTransform rt)
+        {
+            float half = rt.sizeDelta.y / 2f;
+            float centerY = rt.anchoredPosition.y;
+            return (centerY - half, centerY + half);
+        }
+
+        private static bool VerticalRangesOverlap(RectTransform a, RectTransform b)
+        {
+            var (bottomA, topA) = GetVerticalRange(a);
+            var (bottomB, topB) = GetVerticalRange(b);
+            return topA > bottomB && topB > bottomA;
+        }
+
+        private static string DescribeVerticalRange(RectTransform rt)
+        {
+            var (bottom, top) = GetVerticalRange(rt);
+            return $"[{bottom:F0}, {top:F0}]";
+        }
+
+        /// <summary>
+        /// 테스트 I 전용 헬퍼: "지금 실제로 화면에 활성 상태인" TMP_Text만 검사 대상으로 삼는다
+        /// (아직 한 번도 활성화된 적 없는 GameObject는 TMP_Text.Awake/OnEnable이 아직 실행되지
+        /// 않아 font가 원래 null인 게 정상 — 이건 DEC-131이 고친 버그가 아니라 Unity 생명주기
+        /// 특성이라, 여기 포함시키면 실제 화면에 보이지도 않는 텍스트 때문에 오탐이 난다).
+        /// </summary>
+        private static void CheckActiveKoreanText(System.Collections.Generic.List<string> missing, ref int checkedTextCount, ref int checkedCharCount)
+        {
+            var allTexts = Object.FindObjectsByType<TMP_Text>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+            foreach (var t in allTexts)
+            {
+                if (string.IsNullOrEmpty(t.text))
+                {
+                    continue;
+                }
+
+                // DEC-131 1차 수정(NullReferenceException) 재확인: 실제로 화면에 활성화된
+                // 컴포넌트는 자신에게 폰트가 배정 안 돼 있어도(Main.unity의 29개 컴포넌트 전부
+                // m_fontAsset: {fileID: 0}) TMP_Settings.defaultFontAsset 폴백으로 null이 아니어야 한다.
+                Assert.IsNotNull(t.font, $"'{t.name}'의 font가 null입니다 — TMP_Settings.defaultFontAsset 폴백이 깨졌습니다.");
+
+                bool textHasNonAscii = false;
+                foreach (char c in t.text)
+                {
+                    if (c <= 0x7E)
+                    {
+                        continue; // ASCII(라틴/숫자/기본 문장부호)는 LiberationSans SDF로 충분 — 검증 대상 아님.
+                    }
+
+                    textHasNonAscii = true;
+                    checkedCharCount++;
+
+                    bool hasGlyph = t.font.HasCharacter(c, searchFallbacks: true, tryAddCharacter: true);
+                    if (!hasGlyph)
+                    {
+                        string entry = $"'{t.name}' 텍스트의 '{c}'(U+{(int)c:X4})";
+                        if (!missing.Contains(entry))
+                        {
+                            missing.Add(entry);
+                        }
+                    }
+                }
+
+                if (textHasNonAscii)
+                {
+                    checkedTextCount++;
+                }
             }
         }
 

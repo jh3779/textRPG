@@ -211,17 +211,22 @@ namespace TextRPG.EditorTools
                 var sprite = LoadSprite(portraits[i]);
                 if (sprite != null) portraitImg.sprite = sprite;
 
+                // DEC-131 후속 수정: Name(-290, h34 → span -307~-273)과 Stats(-330, h90 → span
+                // -375~-285)가 22유닛 겹쳐서 "전사"/"HP114..."가 화면에서 서로 뒤엉켜 보이는 실제
+                // 버그가 있었다(사용자가 재빌드본을 실행해 스크린샷으로 확인). 카드 상단(포트레이트
+                // 하단 y=-150)부터 겹치지 않게 순서대로 재배치: Name(-180, span -197~-163) →
+                // 8유닛 간격 → Stats(-250, span -295~-205) → 10유닛 간격 → Items(-325, span -345~-305).
                 var nameText = CreateText("Name", cardRoot, ids[i], 22, new Color32(0x3B, 0x33, 0x20, 0xFF),
                     TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                    new Vector2(280, 34), new Vector2(0, -290));
+                    new Vector2(280, 34), new Vector2(0, -180));
 
                 var statsText = CreateText("Stats", cardRoot, "", 16, new Color32(0x3B, 0x33, 0x20, 0xFF),
                     TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                    new Vector2(280, 90), new Vector2(0, -330));
+                    new Vector2(280, 90), new Vector2(0, -250));
 
                 var itemsText = CreateText("Items", cardRoot, "", 14, new Color32(0x5B, 0x4E, 0x33, 0xFF),
                     TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                    new Vector2(280, 40), new Vector2(0, -420));
+                    new Vector2(280, 40), new Vector2(0, -325));
 
                 var selectBtn = cardRoot.gameObject.AddComponent<Button>();
                 var targetGraphic = cardBg;
@@ -288,8 +293,17 @@ namespace TextRPG.EditorTools
             // 신규(OQ-107 해결, DEC-124): 전투 중 적 초상화. 배경(Background)보다 위, 텍스트바/버튼보다는
             // 아래에 두어 대립 구도(VersusStage, C-11)의 최소 버전 역할만 한다 — 카드 프레임 등 고급
             // 비주얼은 이번 범위 밖. 평소(탐색 화면)에는 ExplorePanelController.HideEnemyPortrait()가 꺼둔다.
+            //
+            // DEC-131 후속 수정: 원래 anchoredPosition.y=150(높이 460, 하단 앵커(0.5,0), pivot 0.5)이면
+            // 세로 범위가 [-80, 380]이라 하단 80유닛이 화면 아래로 잘려나가고, 그 위로 ButtonRow(y
+            // 30~90, 배경이 완전 투명이라 뒤에 있는 것이 그대로 비쳐 보임)와 정면으로 겹쳤다(사용자가
+            // 전투 화면 스크린샷으로 실제 확인·보고). y=330으로 올려 범위를 [100, 560]으로 만들면
+            // ButtonRow 상단(90)보다 10유닛 위에서 끝나 더는 겹치지 않고, 화면 하단 클리핑도 없어진다.
+            // 이 값은 EnemyPortrait 하나를 여러 적(고블린/던전 수호자 변종 포함)이 공유해서 쓰므로
+            // (ExplorePanelController.SetEnemyPortrait()는 sprite만 갈아끼우고 위치는 안 건드림) 이
+            // 한 곳만 고치면 모든 적 포트레이트에 동일하게 적용된다.
             var enemyPortraitRT = CreateAnchored("EnemyPortrait", root, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(360, 460), new Vector2(0, 150));
+                new Vector2(360, 460), new Vector2(0, 330));
             var enemyPortraitImg = enemyPortraitRT.gameObject.AddComponent<Image>();
             enemyPortraitImg.preserveAspect = true;
             enemyPortraitImg.raycastTarget = false;
