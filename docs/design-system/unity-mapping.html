@@ -35,6 +35,23 @@
       <code>styles.css</code>의 <code>--ds-*</code> 색·간격 토큰은 Unity <code>ScriptableObject</code> 하나(예: <code>UITheme.asset</code>)로
       1:1 이식한다 — 코드에 색을 하드코딩하지 않고 이 애셋을 모든 UI 컴포넌트가 참조하게 해서, 나중에 팔레트를 바꿔도
       애셋 하나만 수정하면 되게 한다. 폰트는 Cinzel(제목)·Pretendard(본문)·Roboto Mono(수치)를 TMP(TextMeshPro) 폰트 애셋으로 등록.
+      <br><br>
+      <b>2026-09-08 구현 완료(DEC-128)</b>: 축소 구현으로 남아 있던 정적 상수(<code>UIColors.cs</code>)를
+      <code>UITheme</code>(<code>[CreateAssetMenu]</code> <code>ScriptableObject</code>, <code>unity/Assets/Scripts/UI/UITheme.cs</code>) 클래스로 승격하고,
+      <code>ScriptableObject.CreateInstance</code> + <code>AssetDatabase.CreateAsset/SaveAssets</code>를 쓰는 에디터 배치 스크립트
+      (<code>unity/Assets/Editor/UIThemeSetupTool.cs</code>, 메뉴 "TextRPG/3. Create UITheme Asset")로 실제 <code>Assets/Resources/UITheme.asset</code>
+      인스턴스를 생성했다(손 편집 없이 GUID/직렬화 안전). 색상 12개(<code>Surface</code>·<code>SurfaceContainerHigh</code>·<code>Primary</code>·<code>Tertiary</code>·
+      <code>OnSurface</code>·<code>OnSurfaceVariant</code>·<code>OutlineVariant</code>·<code>TextBarBackground</code>·<code>ScrimBottom</code>·<code>InkMark</code>·
+      <code>QuillInk</code>·<code>FoldLine</code>) 전부를 <code>UIColors</code> 값과 16진수 단위로 대조해 정확히 일치시켰다(값 변경 없는 순수 리팩터링).
+      <br><br>
+      <b>"모든 UI 컴포넌트가 참조" 권고를 부분 이행한 이유</b>: 코드 감사 결과 <code>UIColors.*</code>를 실제로 참조하는 유일한 코드는
+      씬 빌드 시점에 정적으로 값을 읽어 GameObject에 색을 굽는 에디터 배치 스크립트(<code>ProjectSetupTool.cs</code>)뿐이었고,
+      런타임 <code>*PanelController</code>들은 색상을 코드로 참조하지 않고(이미 구워진 씬 값을 그대로 사용) 있었다. 따라서
+      <code>ProjectSetupTool.cs</code>는 계속 <code>UIColors</code> 정적 상수를 그대로 쓰게 두고(자산 로드를 거칠 이유가 없음),
+      <code>UIColors</code> 클래스 자체는 삭제하지 않았다(<code>UITheme.cs</code> 필드 기본값과 <code>UIThemeSetupTool</code>의 asset 생성 로직 둘 다
+      이 클래스를 값의 정본으로 그대로 참조해 드리프트를 막는다). <code>UITheme.asset</code>은 앞으로 런타임에 팔레트를 인스펙터 참조나
+      <code>Resources.Load&lt;UITheme&gt;("UITheme")</code>로 읽어야 하는 신규 UI 컴포넌트가 쓸 수 있도록 실체화해 둔 것이다 — 기존
+      컨트롤러를 강제로 전환하는 것은 이번 작업 범위(기술부채 해소, 순수 리팩터링) 밖의 과설계로 판단해 하지 않았다.
     </div>
   </section>
 

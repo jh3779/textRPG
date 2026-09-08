@@ -2,10 +2,20 @@
  * UIColors.cs
  *
  * 📝 역할: docs/design-system/unity-mapping.html M-01 "디자인 토큰 → Unity 자산"의
- * 축소 구현. 정본 문서는 ScriptableObject(UITheme.asset) 하나로 토큰을 옮기라고
- * 권고하지만, 이번 작업에서는 Unity Editor 배치 스크립트로 .asset 파일을 안전하게
- * 수기 생성하기 어려워(잘못된 GUID/직렬화로 깨진 에셋이 될 위험) 우선 정적 색상
- * 상수로만 옮겨두었다 — ScriptableObject로의 승격은 다음 작업으로 남겨둔다(최종 보고 참조).
+ * 값 정본(source of truth). 원래는 ScriptableObject 승격 전 축소 구현으로 이
+ * 정적 상수만 있었으나, DEC-128에서 UITheme(ScriptableObject) 클래스와 실제
+ * Assets/Resources/UITheme.asset 인스턴스를 추가해 승격을 완료했다
+ * (unity/Assets/Scripts/UI/UITheme.cs, unity/Assets/Editor/UIThemeSetupTool.cs).
+ *
+ * DEC-128 판단: 이 클래스는 삭제하지 않고 유지한다. ProjectSetupTool.cs(씬을
+ * 빌드하는 에디터 배치 스크립트)는 계속 이 정적 상수를 직접 참조한다 — 빌드
+ * 시점에 정적으로 값을 읽어 GameObject에 굽는 용도라 자산 로드를 거칠 필요가
+ * 없다. UITheme.asset은 이 값들을 그대로 복사한 "실체화된 사본"이며, 앞으로
+ * 런타임에 팔레트를 인스펙터 참조나 Resources.Load<UITheme>("UITheme")로 읽어야
+ * 하는 신규 UI 컴포넌트가 쓰도록 마련해 둔 것이다(현재 *PanelController들은
+ * 색상을 씬에 이미 구운 값으로 쓰고 있어 강제 전환하지 않았다 — 과설계 금지,
+ * 순수 리팩터링 범위 유지). 값이 어긋나지 않도록 UITheme.cs 필드 기본값과
+ * UIThemeSetupTool의 asset 생성 로직 둘 다 이 클래스의 상수를 참조한다.
  *
  * 값 출처: docs/design-system/styles.css [data-ds-theme="dark"] 블록
  * ("실제 게임 톤과 동일", 07_visual_style.md 원본).
