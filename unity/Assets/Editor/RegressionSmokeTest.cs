@@ -62,6 +62,10 @@ namespace TextRPG.EditorTools
             passed += Check("DEC-124: 고블린 조우 시 4개 변종이 전부 무작위로 나오고, 각 변종의 스탯·포트레이트·보상이 정확해야 함",
                 TestGoblinVariantSelectionAndStatsMatchVariantTable);
 
+            // 신규(OQ-108 해결, DEC-125): 던전 수호자는 4개 포트레이트 변종이 무작위로 나오되 스탯은 항상 동일해야 함
+            passed += Check("DEC-125: 던전 수호자 보스전 조우 시 4개 포트레이트 변종이 전부 무작위로 나오고, 스탯은 항상 균형형 그대로 동일해야 함",
+                TestGuardianPortraitVariantSelectionKeepsStatsFixed);
+
             Debug.Log($"[RegressionSmokeTest] ALL PASSED ({passed} checks)");
         }
 
@@ -677,6 +681,87 @@ namespace TextRPG.EditorTools
 
             Assert(observedPortraits.Count == 4,
                 $"{trials}회 시행에서 4종 변종이 전부 관측되어야 하는데 {observedPortraits.Count}종만 관측됨");
+        }
+
+        /// <summary>
+        /// OQ-108 해결(DEC-125): 던전 수호자 예비 변종 3개(중장형·기동형·마도형)는 "회차마다 랜덤 보스"로
+        /// 쓰기로 확정됐지만, 고블린(DEC-124)과 달리 스탯을 다르게 하라는 요구는 없었다 — 4개 변종
+        /// (균형형 포함) 모두 스탯(HP55/ATK10/DEF3, src/Game.cpp 원본 그대로)은 항상 동일하고 포트레이트만
+        /// 무작위로 달라져야 한다. GameSession의 실제 진행 흐름으로 보스의 방까지 도달해야 하므로, 먼저
+        /// 고블린전을 이겨야 한다(고블린 스탯은 DEC-124로 변종마다 다르지만 승패와 무관하게 이 테스트의
+        /// 관심사가 아니다) — 패배/도주 시에는 보스의 방에 도달하지 못하므로 해당 시행은 버리고 재시도한다.
+        /// </summary>
+        private static void TestGuardianPortraitVariantSelectionKeepsStatsFixed()
+        {
+            var expectedPortraits = new System.Collections.Generic.HashSet<string>
+            {
+                "enemy_던전수호자_균형형.png",
+                "enemy_던전수호자_중장형.png",
+                "enemy_던전수호자_기동형.png",
+                "enemy_던전수호자_마도형.png",
+            };
+
+            var observedPortraits = new System.Collections.Generic.HashSet<string>();
+            const int trials = 200; // 4종 중 하나라도 관측되지 않을 확률은 (3/4)^200 ≈ 0에 수렴
+
+            for (int i = 0; i < trials; i++)
+            {
+                GameSession session = null;
+                bool reachedBossRoom = false;
+
+                // 고블린전은 변종별 스탯이 랜덤이라 패배/도주할 수 있다 — 보스의 방에 도달할 때까지 재시도한다.
+                for (int attempt = 0; attempt < 30 && !reachedBossRoom; attempt++)
+                {
+                    session = new GameSession();
+                    session.BeginNewGameFlow();
+                    session.SelectPendingClass("warrior"); // HP114(DEC-123)로 고블린전 생존 여유가 가장 큼
+                    session.ConfirmClass();
+
+                    session.ChooseLocationAction(1); // 던전 입구 -> 갈림길
+                    session.ChooseLocationAction(2); // 오른쪽 통로 -> 어두운 통로, 고블린과 자동 전투
+                    Assert(session.CurrentState == GameState.BATTLE, "고블린과 전투가 시작되어야 함");
+
+                    BattleResult? goblinResult = null;
+                    int guard = 0;
+                    while (goblinResult == null && guard < 1000)
+                    {
+                        goblinResult = session.ProcessBattleTurn(1); // 항상 공격
+                        guard++;
+                    }
+                    Assert(goblinResult != null, "고블린전이 끝나야 함");
+
+                    if (goblinResult == BattleResult.PLAYER_WIN)
+                    {
+                        Assert(session.Map.GetCurrentLocationIndex() == 4, "고블린 처치 후 보스의 방으로 자동 이동해야 함");
+                        reachedBossRoom = true;
+                    }
+                }
+                Assert(reachedBossRoom, "여러 번 재시도해도 보스의 방에 도달하지 못함(고블린전 승리 실패)");
+
+                session.ChooseLocationAction(1); // 보스에게 도전 -> StartBattleWithGuardian()
+                Assert(session.CurrentState == GameState.BATTLE, "던전 수호자와 전투가 시작되어야 함");
+
+                var guardian = session.CurrentEnemy;
+                Assert(guardian.GetName() == "던전 수호자", "적 이름은 '던전 수호자'로 고정되어야 함");
+                Assert(guardian.PortraitVariants != null && guardian.PortraitVariants.Length == 1,
+                    "DEC-125: 4개 후보 풀이 아니라 확정된 포트레이트 1개만 가져야 함");
+
+                string portrait = guardian.PortraitVariants[0];
+                Assert(expectedPortraits.Contains(portrait), $"알 수 없는 던전 수호자 포트레이트 파일명: {portrait}");
+
+                // DEC-125 핵심: 포트레이트가 무엇이든 스탯은 항상 균형형(원본) 그대로 고정이어야 한다.
+                Assert(guardian.GetMaxHp() == 55 && guardian.GetAttack() == 10 && guardian.GetDefense() == 3,
+                    $"던전 수호자 스탯은 변종({portrait})과 무관하게 항상 HP55/ATK10/DEF3이어야 하는데 " +
+                    $"HP{guardian.GetMaxHp()}/ATK{guardian.GetAttack()}/DEF{guardian.GetDefense()}");
+                Assert(guardian.AttackSpeed == 0, $"던전 수호자 공격속도는 변종과 무관하게 항상 0(기본값)이어야 하는데 {guardian.AttackSpeed}");
+                Assert(guardian.GetExperienceReward() == 120 && guardian.GetGoldReward() == 70,
+                    "던전 수호자 보상(EXP120/골드70)은 변종과 무관하게 항상 동일해야 함");
+
+                observedPortraits.Add(portrait);
+            }
+
+            Assert(observedPortraits.Count == 4,
+                $"{trials}회 시행에서 던전 수호자 4종 포트레이트 변종이 전부 관측되어야 하는데 {observedPortraits.Count}종만 관측됨");
         }
 
         private static void TestManaRecoverySkillConsumesMaterialInBattle()

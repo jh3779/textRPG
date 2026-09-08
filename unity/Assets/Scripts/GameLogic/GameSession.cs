@@ -265,12 +265,31 @@ namespace TextRPG.GameLogic
             CurrentState = GameState.BATTLE;
         }
 
+        /// <summary>
+        /// OQ-108 해결(DEC-125): 던전 수호자 예비 변종 3개(중장형·기동형·마도형, DEC-114)는
+        /// "회차마다 랜덤 보스"로 사용하기로 확정됐다. 단 고블린(DEC-124)과 달리 스탯을 변종마다
+        /// 다르게 하라는 요구는 없었으므로, 4개 변종(균형형 포함) 전부 스탯은 동일하게 유지하고
+        /// 포트레이트(시각)만 랜덤으로 고른다 — DEC-114의 "던전 수호자는 시각만 다름" 원칙 그대로.
+        /// </summary>
+        private static readonly string[] GuardianPortraitVariants =
+        {
+            "enemy_던전수호자_균형형.png",
+            "enemy_던전수호자_중장형.png",
+            "enemy_던전수호자_기동형.png",
+            "enemy_던전수호자_마도형.png",
+        };
+
         private void StartBattleWithGuardian()
         {
-            // src/Game.cpp: Enemy guardian("던전 수호자", 55, 10, 3, 120, 70);
+            // src/Game.cpp: Enemy guardian("던전 수호자", 55, 10, 3, 120, 70); — 스탯은 절대 변경하지 않는다.
+            // 신규(DEC-125): 보스 조우는 회차당 1회(지역 5, 마지막)뿐이므로, 이 조우 시점에 포트레이트를
+            // 랜덤 선택하는 것으로 "회차마다 랜덤 보스"를 충분히 만족한다(별도의 사전 확정 메커니즘 불필요).
+            // GoblinVariants와 동일하게 Utils.GenerateRandomNumber를 재사용한다.
+            int portraitIndex = Utils.GenerateRandomNumber(0, GuardianPortraitVariants.Length - 1);
+
             CurrentEnemy = new Enemy("던전 수호자", 55, 10, 3, 120, 70)
             {
-                PortraitVariants = new[] { "enemy_던전수호자.png" } // DEC-114: 균형형 고정
+                PortraitVariants = new[] { GuardianPortraitVariants[portraitIndex] }
             };
             CurrentBattle = new BattleSystem(Player, CurrentEnemy);
             CurrentState = GameState.BATTLE;

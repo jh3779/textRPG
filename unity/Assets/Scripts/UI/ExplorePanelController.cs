@@ -34,9 +34,11 @@ namespace TextRPG.UI
 
         /// <summary>
         /// 신규(OQ-107 해결, DEC-124): 전투 중 표시할 적 초상화. Enemy.PortraitVariants[0](이제 후보 풀이
-        /// 아니라 전투 시작 시 이미 확정된 단일 파일명, GameSession.StartBattleWithGoblin 참조)과
-        /// 파일명으로 매칭한다. locationArt와 동일한 "이름→스프라이트" 매칭 패턴을 그대로 재사용했다
-        /// (범용 스프라이트 리소스 시스템을 새로 만들지 않음 — 과설계 금지).
+        /// 아니라 전투 시작 시 이미 확정된 단일 파일명, GameSession.StartBattleWithGoblin/StartBattleWithGuardian
+        /// 참조)과 파일명으로 매칭한다. locationArt와 동일한 "이름→스프라이트" 매칭 패턴을 그대로 재사용했다
+        /// (범용 스프라이트 리소스 시스템을 새로 만들지 않음 — 과설계 금지). 2026-09-08 갱신(DEC-125,
+        /// OQ-108 해결): 던전 수호자 4개 변종도 이 매칭 리스트(enemyPortraitArt)에 추가됐다 — 코드 변경 없이
+        /// ProjectSetupTool.BuildExplorePanel의 데이터 바인딩만 확장하면 되는 구조였다.
         /// </summary>
         [Serializable]
         public class PortraitArt

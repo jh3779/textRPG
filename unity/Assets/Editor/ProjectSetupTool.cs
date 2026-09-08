@@ -364,15 +364,25 @@ namespace TextRPG.EditorTools
 
             // 신규(OQ-107 해결, DEC-124): 고블린 4개 변종 초상화. fileName은 GameSession이 전투 시작 시
             // Enemy.PortraitVariants[0]에 넣는 문자열(확장자 .png 포함)과 정확히 일치해야 한다.
-            // 던전 수호자(enemy_던전수호자.png)는 이번 작업 범위(OQ-108 별도)가 아니므로 여기서는
-            // 연결하지 않는다 — 매칭되는 항목이 없으면 SetEnemyPortrait()가 조용히 숨긴다(기존 동작 유지).
+            // 2026-09-08 갱신(DEC-125, OQ-108 해결): 던전 수호자 4개 변종(균형형·중장형·기동형·마도형)도
+            // 같은 리스트에 이어 추가한다 — GameSession.StartBattleWithGuardian()이 조우 시점에 이 중
+            // 하나를 랜덤 선택해 PortraitVariants[0]에 넣으므로(스탯은 항상 동일), 매칭 코드 변경 없이
+            // 데이터만 추가하면 된다.
             var portraitArtProp = so.FindProperty("enemyPortraitArt");
             string[] goblinVariants = { "약소형", "날렵형", "거대형", "주술사형" };
-            portraitArtProp.arraySize = goblinVariants.Length;
+            string[] guardianVariants = { "균형형", "중장형", "기동형", "마도형" };
+            portraitArtProp.arraySize = goblinVariants.Length + guardianVariants.Length;
             for (int i = 0; i < goblinVariants.Length; i++)
             {
                 string fileBase = $"enemy_고블린_{goblinVariants[i]}";
                 var element = portraitArtProp.GetArrayElementAtIndex(i);
+                element.FindPropertyRelative("fileName").stringValue = $"{fileBase}.png";
+                element.FindPropertyRelative("sprite").objectReferenceValue = LoadSprite(fileBase);
+            }
+            for (int i = 0; i < guardianVariants.Length; i++)
+            {
+                string fileBase = $"enemy_던전수호자_{guardianVariants[i]}";
+                var element = portraitArtProp.GetArrayElementAtIndex(goblinVariants.Length + i);
                 element.FindPropertyRelative("fileName").stringValue = $"{fileBase}.png";
                 element.FindPropertyRelative("sprite").objectReferenceValue = LoadSprite(fileBase);
             }

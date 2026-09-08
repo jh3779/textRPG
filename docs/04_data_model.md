@@ -40,7 +40,16 @@
 ### ENT-103 · Enemy, ENT-104 · Location, ENT-105 · Item, ENT-106 · Quest
 기존 웹 버전 기획(구 문서)과 동일 — 콘솔 버전의 `Enemy`/`Map::Location`/`Item`/`Quest` 필드를 그대로 사용. 필드 정의는 각 C++ 헤더(`include/Enemy.h`, `include/Map.h`, `include/Item.h`, `include/Quest.h`) 참조.
 
-**아트 변형 (2026-09-04 추가, DEC-114):** `Enemy`에 `portraitVariants: string[]`를 하나 추가. 던전 수호자는 `art-assets/enemy_던전수호자.png`(균형형) 고정 1장만 사용 — 나머지 3변종은 데이터 모델에 아직 연결하지 않음(OQ-108).
+**아트 변형 (2026-09-04 추가, DEC-114):** `Enemy`에 `portraitVariants: string[]`를 하나 추가.
+
+**2026-09-08 갱신(DEC-125, OQ-108 해결): 던전 수호자는 4개 포트레이트 변종 중 조우 시점에 무작위로 1개를 고른다 — 스탯은 절대 바꾸지 않는다.** `GameSession.StartBattleWithGuardian()`이 보스 조우마다(회차당 1회, 보스의 방은 지역 5·마지막) 아래 4개 파일명 중 하나를 무작위로 골라 `portraitVariants`(단일 확정 포트레이트 1개)에 담는다. HP/ATK/DEF/공격속도/EXP/골드/이름은 4개 변종 전부 원본(`src/Game.cpp: Enemy guardian("던전 수호자", 55, 10, 3, 120, 70)`) 그대로 완전히 동일하다 — 고블린(DEC-124)과 달리 스탯 차등화 요구가 없었기 때문이다.
+
+| 포트레이트 파일명 | HP | ATK | DEF | 공격속도 | 비고 |
+|---|---|---|---|---|---|
+| `enemy_던전수호자_균형형.png` | 55 | 10 | 3 | 0 | 기존 MVP 고정 아트(구 `enemy_던전수호자.png`와 MD5 동일 — 단순 복제본이었음, 파일 자체는 정리 안 함) |
+| `enemy_던전수호자_중장형.png` | 55 | 10 | 3 | 0 | 시각만 다름(DEC-114 원안) |
+| `enemy_던전수호자_기동형.png` | 55 | 10 | 3 | 0 | 시각만 다름(DEC-114 원안) |
+| `enemy_던전수호자_마도형.png` | 55 | 10 | 3 | 0 | 시각만 다름(DEC-114 원안) |
 
 **2026-09-08 갱신(DEC-124, OQ-107 해결): 고블린은 4개 시각 변종이 스탯도 다른 별개의 적이다.** 기존 "그림만 다름"(ASM-104) 가정은 폐기됐다. `GameSession.StartBattleWithGoblin()`이 조우 시점에 4개 중 하나를 무작위로 골라 아래 스탯 + 해당 변종 전용 포트레이트로 `Enemy`를 생성한다. `portraitVariants`는 더 이상 4개 후보를 담은 풀이 아니라, 선택이 끝난 뒤 그 변종에 대응하는 **단일 확정 포트레이트 1개**만 담는다(던전 수호자와 동일한 "단일 확정" 표현 방식).
 
