@@ -330,6 +330,19 @@ namespace TextRPG.EditorTools
             playerPortraitImg.raycastTarget = false;
             playerPortraitImg.enabled = false;
 
+            // 신규(DEC-133): 전투 공격 이펙트 — 피격 플래시(HitFlashEffect)는 각 포트레이트 Image
+            // 자신을 target으로 삼아 색만 잠깐 바꿨다 되돌린다(같은 GameObject에 부착).
+            var enemyHitFlash = enemyPortraitRT.gameObject.AddComponent<HitFlashEffect>();
+            BindSerialized(enemyHitFlash, ("target", enemyPortraitImg));
+
+            var playerHitFlash = playerPortraitRT.gameObject.AddComponent<HitFlashEffect>();
+            BindSerialized(playerHitFlash, ("target", playerPortraitImg));
+
+            // 신규(DEC-133): 데미지/회복 숫자 팝업 — 각 포트레이트의 자식으로 붙여 그 근처에서
+            // 나타났다 위로 떠오르며 사라지도록 한다. 평소엔 비활성(SetActive(false))으로 시작한다.
+            var enemyDamagePopup = BuildDamagePopup(enemyPortraitRT, "EnemyDamagePopup");
+            var playerDamagePopup = BuildDamagePopup(playerPortraitRT, "PlayerDamagePopup");
+
             var statusLine = CreateText("StatusLine", root, "[라운드 0]", 16, Color.white, TextAlignmentOptions.Left,
                 new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(-24, 30), new Vector2(0, -16));
 
@@ -388,7 +401,11 @@ namespace TextRPG.EditorTools
                 ("statusOverlayText", overlayText),
                 ("statusOverlayCloseButton", closeBtn),
                 ("enemyPortraitImage", enemyPortraitImg),
-                ("playerPortraitImage", playerPortraitImg));
+                ("playerPortraitImage", playerPortraitImg),
+                ("enemyHitFlash", enemyHitFlash),
+                ("playerHitFlash", playerHitFlash),
+                ("enemyDamagePopup", enemyDamagePopup),
+                ("playerDamagePopup", playerDamagePopup));
 
             // 지역별 배경 스프라이트(SCR-003 가시 의무: "현재 지역을 암시하는 배경 씬 일러스트")
             var so = new SerializedObject(controller);
@@ -582,6 +599,26 @@ namespace TextRPG.EditorTools
             BindSerialized(overlay, ("ring", ring));
             overlayRT.gameObject.SetActive(false);
             return overlay;
+        }
+
+        /// <summary>
+        /// DEC-133 신규: 데미지/회복 숫자 팝업(DamagePopupText)을 portraitRT의 자식으로 만든다.
+        /// 텍스트 색은 DamagePopupText.Show()가 매번 호출 시점에 다시 지정하므로(피해=Tertiary,
+        /// 회복=HealNumber) 여기서는 기본값만 넣어둔다. 평소엔 비활성 상태로 시작해 전투 밖에서는
+        /// 화면에 아무 영향도 주지 않는다.
+        /// </summary>
+        private static DamagePopupText BuildDamagePopup(RectTransform portraitRT, string name)
+        {
+            var popupText = CreateText(name, portraitRT, "", 28, UIColors.Tertiary, TextAlignmentOptions.Center,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(200, 60), new Vector2(0, 40));
+            var rt = popupText.rectTransform;
+            var canvasGroup = rt.gameObject.AddComponent<CanvasGroup>();
+            canvasGroup.alpha = 0f;
+
+            var popup = rt.gameObject.AddComponent<DamagePopupText>();
+            BindSerialized(popup, ("text", popupText), ("canvasGroup", canvasGroup), ("rectTransform", rt));
+            rt.gameObject.SetActive(false);
+            return popup;
         }
 
         /// <summary>

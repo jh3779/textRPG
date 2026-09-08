@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="15" result="Passed" total="15" passed="15" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:50Z" duration="4.7816186">
+  <test-suite type="TestSuite" id="1022" name="DungeonGate" fullname="DungeonGate" runstate="Runnable" testcasecount="15" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:50Z" duration="4.781619" total="15" passed="15" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="PlayMode" />
+    </properties>
+    <test-suite type="Assembly" id="1017" name="TextRPG.Tests.PlayMode.dll" fullname="/Users/jihun/Developer/Game/textRPG/.claude/worktrees/agent-a040ab5f178690d52/unity/Library/ScriptAssemblies/TextRPG.Tests.PlayMode.dll" runstate="Runnable" testcasecount="15" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:50Z" duration="4.778399" total="15" passed="15" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="9602" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="PlayMode" />
+        <property name="EditorOnly" value="False" />
+      </properties>
+      <test-suite type="TestSuite" id="1018" name="TextRPG" fullname="TextRPG" runstate="Runnable" testcasecount="15" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:50Z" duration="4.778192" total="15" passed="15" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1019" name="Tests" fullname="TextRPG.Tests" runstate="Runnable" testcasecount="15" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:50Z" duration="4.778111" total="15" passed="15" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1020" name="PlayMode" fullname="TextRPG.Tests.PlayMode" runstate="Runnable" testcasecount="15" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:50Z" duration="4.778034" total="15" passed="15" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1001" name="CoreFlowPlayModeTests" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" testcasecount="15" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:50Z" duration="4.777514" total="15" passed="15" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1002" name="A_TitleScreen_ShowsOnLoad" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.A_TitleScreen_ShowsOnLoad" methodname="A_TitleScreen_ShowsOnLoad" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="719765575" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:46Z" duration="0.166254" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1003" name="B_NewGame_WithoutSave_GoesToClassSelect" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.B_NewGame_WithoutSave_GoesToClassSelect" methodname="B_NewGame_WithoutSave_GoesToClassSelect" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="1314474105" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:46Z" duration="0.022345" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1004" name="C_NewGame_WithSave_ShowsOverwriteConfirmModal" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.C_NewGame_WithSave_ShowsOverwriteConfirmModal" methodname="C_NewGame_WithSave_ShowsOverwriteConfirmModal" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="2036863760" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:46Z" duration="0.019883" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1005" name="D_SelectWarrior_ConfirmsAndShowsExploreWithCorrectStats" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.D_SelectWarrior_ConfirmsAndShowsExploreWithCorrectStats" methodname="D_SelectWarrior_ConfirmsAndShowsExploreWithCorrectStats" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="1439745224" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:46Z" duration="0.029578" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1006" name="E_ExploreScreen_MoveButtonClick_ActuallyMovesLocation" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.E_ExploreScreen_MoveButtonClick_ActuallyMovesLocation" methodname="E_ExploreScreen_MoveButtonClick_ActuallyMovesLocation" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="859580136" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:46Z" duration="0.020193" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1007" name="F_GoblinBattle_PortraitRendersAndAttackButtonsWork" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.F_GoblinBattle_PortraitRendersAndAttackButtonsWork" methodname="F_GoblinBattle_PortraitRendersAndAttackButtonsWork" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="390060615" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:46Z" duration="0.028471" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1008" name="G_ClassSelect_CardSelection_TogglesInkMarkOverlay" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.G_ClassSelect_CardSelection_TogglesInkMarkOverlay" methodname="G_ClassSelect_CardSelection_TogglesInkMarkOverlay" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="2131073781" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:46Z" duration="0.263632" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1009" name="H_ResultPanel_QuillReveal_ProgressesOverTimeAndCompletes" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.H_ResultPanel_QuillReveal_ProgressesOverTimeAndCompletes" methodname="H_ResultPanel_QuillReveal_ProgressesOverTimeAndCompletes" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="1612107433" result="Passed" start-time="2026-09-08 10:36:46Z" end-time="2026-09-08 10:36:48Z" duration="1.794616" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1010" name="I_KoreanText_ResolvesToFontsThatActuallyHaveHangulGlyphs" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.I_KoreanText_ResolvesToFontsThatActuallyHaveHangulGlyphs" methodname="I_KoreanText_ResolvesToFontsThatActuallyHaveHangulGlyphs" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="956579845" result="Passed" start-time="2026-09-08 10:36:48Z" end-time="2026-09-08 10:36:48Z" duration="0.021151" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1011" name="J_ClassSelectCards_NameStatsItemsText_DoNotOverlapVertically" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.J_ClassSelectCards_NameStatsItemsText_DoNotOverlapVertically" methodname="J_ClassSelectCards_NameStatsItemsText_DoNotOverlapVertically" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="966968885" result="Passed" start-time="2026-09-08 10:36:48Z" end-time="2026-09-08 10:36:48Z" duration="0.011495" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1012" name="K_GoblinBattle_PlayerPortraitRendersWithCorrectClassSprite" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.K_GoblinBattle_PlayerPortraitRendersWithCorrectClassSprite" methodname="K_GoblinBattle_PlayerPortraitRendersWithCorrectClassSprite" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="2105276302" result="Passed" start-time="2026-09-08 10:36:48Z" end-time="2026-09-08 10:36:48Z" duration="0.017756" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1013" name="L_BattleBag_UsePotion_RestoresHpAndConsumesTurn" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.L_BattleBag_UsePotion_RestoresHpAndConsumesTurn" methodname="L_BattleBag_UsePotion_RestoresHpAndConsumesTurn" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="168460204" result="Passed" start-time="2026-09-08 10:36:48Z" end-time="2026-09-08 10:36:48Z" duration="0.020451" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1014" name="M_BattleBag_NoPotions_DisablesBagOption" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.M_BattleBag_NoPotions_DisablesBagOption" methodname="M_BattleBag_NoPotions_DisablesBagOption" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="1678994518" result="Passed" start-time="2026-09-08 10:36:48Z" end-time="2026-09-08 10:36:48Z" duration="0.017740" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1015" name="N_GoblinBattle_AttackTriggersHitFlashAndDamagePopupsOnBothSides" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.N_GoblinBattle_AttackTriggersHitFlashAndDamagePopupsOnBothSides" methodname="N_GoblinBattle_AttackTriggersHitFlashAndDamagePopupsOnBothSides" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="2001026500" result="Passed" start-time="2026-09-08 10:36:48Z" end-time="2026-09-08 10:36:49Z" duration="0.918853" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1016" name="O_HitFlashAndDamagePopup_RepeatedCalls_RestartCleanlyWithoutResidue" fullname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests.O_HitFlashAndDamagePopup_RepeatedCalls_RestartCleanlyWithoutResidue" methodname="O_HitFlashAndDamagePopup_RepeatedCalls_RestartCleanlyWithoutResidue" classname="TextRPG.Tests.PlayMode.CoreFlowPlayModeTests" runstate="Runnable" seed="260339124" result="Passed" start-time="2026-09-08 10:36:49Z" end-time="2026-09-08 10:36:50Z" duration="1.418753" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Saving results to: /Users/jihun/Developer/Game/textRPG/.claude/worktrees/agent-a040ab5f178690d52/scratch_playmode_results.xml
+]]></output>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

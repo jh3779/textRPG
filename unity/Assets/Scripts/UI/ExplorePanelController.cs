@@ -76,6 +76,12 @@ namespace TextRPG.UI
         [SerializeField] private Image playerPortraitImage; // 씬에 연결 안 된 환경(null)에서도 안전하게 동작해야 함
         [SerializeField] private List<ClassPortraitArt> playerPortraitArt = new List<ClassPortraitArt>();
 
+        [Header("전투 공격 이펙트 (DEC-133 — 피격 플래시·데미지 숫자 팝업, null이어도 전투 자체는 정상 진행)")]
+        [SerializeField] private HitFlashEffect enemyHitFlash;
+        [SerializeField] private HitFlashEffect playerHitFlash;
+        [SerializeField] private DamagePopupText enemyDamagePopup;
+        [SerializeField] private DamagePopupText playerDamagePopup;
+
         [Header("상태 확인 오버레이 (SCR-005/006 최소 버전)")]
         [SerializeField] private GameObject statusOverlayRoot;
         [SerializeField] private TMP_Text statusOverlayText;
@@ -444,12 +450,21 @@ namespace TextRPG.UI
             var session = bootstrap.Session;
             string itemName = session.Inventory.GetItem(inventoryIndex)?.GetName() ?? "아이템";
 
+            // 신규(DEC-133): TryUseItemInBattle 호출 전 HP를 스냅샷해둔다 — 이 호출이 전투를
+            // 끝낼 수도 있고(session.CurrentEnemy가 즉시 null이 됨), 아이템 효과+반격이 한
+            // 메서드 안에서 한 번에 처리되므로 호출 전/후로만 순수하게 비교할 수 있다.
+            var enemySnapshot = session.CurrentEnemy;
+            int playerHpBefore = session.Player.GetHp();
+            int enemyHpBefore = enemySnapshot != null ? enemySnapshot.GetHp() : 0;
+
             bool used = session.TryUseItemInBattle(inventoryIndex, out var itemResult, out var battleResult);
             if (!used || itemResult != ItemUseResult.Success)
             {
                 RenderBattle("사용할 수 없는 아이템입니다.");
                 return;
             }
+
+            TriggerBattleEffects(playerHpBefore, enemyHpBefore, enemySnapshot);
 
             if (!battleResult.HasValue)
             {
@@ -470,7 +485,13 @@ namespace TextRPG.UI
         private void OnBattleAction(int action)
         {
             var session = bootstrap.Session;
-            var enemyName = session.CurrentEnemy.GetName();
+            var enemySnapshot = session.CurrentEnemy;
+            var enemyName = enemySnapshot.GetName();
+
+            // 신규(DEC-133): 행동 전 HP를 스냅샷해둔다 — BattleSystem의 데미지 계산 로직 자체는
+            // 건드리지 않고, 행동 전/후 HP 차이만 UI 레이어에서 계산해 피격 이펙트를 트리거한다.
+            int playerHpBefore = session.Player.GetHp();
+            int enemyHpBefore = enemySnapshot.GetHp();
 
             BattleResult? result;
 
@@ -488,6 +509,8 @@ namespace TextRPG.UI
                 result = session.ProcessBattleTurn(action);
             }
 
+            TriggerBattleEffects(playerHpBefore, enemyHpBefore, enemySnapshot);
+
             if (!result.HasValue)
             {
                 RenderBattle(GetActionLog(action, enemyName));
@@ -501,6 +524,44 @@ namespace TextRPG.UI
                 case BattleResult.PLAYER_FLEE:
                     Refresh();
                     break;
+            }
+        }
+
+        /// <summary>
+        /// 신규(DEC-133): 행동 전/후 HP를 비교해 피격 플래시(HitFlashEffect) + 데미지/회복 숫자
+        /// 팝업(DamagePopupText)을 트리거한다. BattleSystem의 데미지 계산 로직·밸런스 수치는
+        /// 전혀 건드리지 않고, 그 결과로 이미 바뀐 HP 차이만 UI 레이어에서 소비한다(지시사항 그대로).
+        /// enemySnapshot은 호출부가 행동 직전에 미리 캡처해둔 참조를 그대로 받아야 한다 — 그
+        /// 행동으로 전투가 끝나면 session.CurrentEnemy가 즉시 null로 바뀌므로(GameSession.
+        /// ResolveBattleResult), 여기서 session.CurrentEnemy를 다시 읽으면 안 된다.
+        /// </summary>
+        private void TriggerBattleEffects(int playerHpBefore, int enemyHpBefore, Enemy enemySnapshot)
+        {
+            var session = bootstrap.Session;
+
+            int playerDelta = playerHpBefore - session.Player.GetHp();
+            if (playerDelta > 0)
+            {
+                playerHitFlash?.Flash();
+                playerDamagePopup?.Show(playerDelta, isHeal: false);
+            }
+            else if (playerDelta < 0)
+            {
+                playerDamagePopup?.Show(-playerDelta, isHeal: true);
+            }
+
+            if (enemySnapshot != null)
+            {
+                int enemyDelta = enemyHpBefore - enemySnapshot.GetHp();
+                if (enemyDelta > 0)
+                {
+                    enemyHitFlash?.Flash();
+                    enemyDamagePopup?.Show(enemyDelta, isHeal: false);
+                }
+                else if (enemyDelta < 0)
+                {
+                    enemyDamagePopup?.Show(-enemyDelta, isHeal: true);
+                }
             }
         }
 

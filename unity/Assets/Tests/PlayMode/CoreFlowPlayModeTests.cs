@@ -926,5 +926,181 @@ namespace TextRPG.Tests.PlayMode
                 RestoreSaveFile(hadExisting, backup);
             }
         }
+
+        // ----------------------------------------------------------------
+        // 테스트 N: 전투 중 "1. 일반 공격" 클릭 시 실제로 피격 플래시(HitFlashEffect)와
+        // 데미지 숫자 팝업(DamagePopupText)이 양쪽(적/플레이어) 모두 트리거되고, 표시된
+        // 숫자가 실제 HP 변화량과 정확히 일치하는지 검증(DEC-133 신규).
+        //
+        // 고블린 4변종 모두 HP가 최소 20이고 전사의 일반 공격(ATK13+Random(0,3))으로는
+        // 한 방에 죽지 않으며(변종별 def 고려해도 최종 피해 10~16, HP20~45), 전사 HP(114)도
+        // 고블린 반격 한 방으로는 죽지 않으므로 "양쪽 다 이번 턴에 피해를 입는다"가
+        // 변종·랜덤 롤과 무관하게 항상 성립한다(테스트 L과 동일한 결정성 확보 방식).
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator N_GoblinBattle_AttackTriggersHitFlashAndDamagePopupsOnBothSides()
+        {
+            bool hadExisting = false;
+            string backup = null;
+            Application.logMessageReceived += ConsumeKnownEditorNoiseIfMatched;
+            try
+            {
+                backup = BackupSaveFileIfExists(out hadExisting);
+                DeleteSaveFileIfExists();
+
+                yield return LoadMainScene();
+                yield return SelectWarriorAndConfirm();
+
+                var bootstrap = FindBootstrap();
+                var exploreController = FindController<ExplorePanelController>();
+                yield return EnterGoblinBattle(exploreController);
+                Assert.AreEqual(GameState.BATTLE, bootstrap.Session.CurrentState);
+
+                var enemyPortrait = exploreController.transform.Find("EnemyPortrait");
+                var playerPortrait = exploreController.transform.Find("PlayerPortrait");
+                var enemyImage = enemyPortrait.GetComponent<Image>();
+                var playerImage = playerPortrait.GetComponent<Image>();
+                var enemyHitFlash = enemyPortrait.GetComponent<HitFlashEffect>();
+                var playerHitFlash = playerPortrait.GetComponent<HitFlashEffect>();
+                var enemyDamagePopup = enemyPortrait.GetComponentInChildren<DamagePopupText>(true);
+                var playerDamagePopup = playerPortrait.GetComponentInChildren<DamagePopupText>(true);
+
+                Assert.IsNotNull(enemyHitFlash, "EnemyPortrait에 HitFlashEffect가 연결되어 있어야 합니다.");
+                Assert.IsNotNull(playerHitFlash, "PlayerPortrait에 HitFlashEffect가 연결되어 있어야 합니다.");
+                Assert.IsNotNull(enemyDamagePopup, "EnemyPortrait 하위에 DamagePopupText가 연결되어 있어야 합니다.");
+                Assert.IsNotNull(playerDamagePopup, "PlayerPortrait 하위에 DamagePopupText가 연결되어 있어야 합니다.");
+
+                Color enemyOriginalColor = enemyImage.color;
+                Color playerOriginalColor = playerImage.color;
+                Assert.IsFalse(enemyHitFlash.IsPlaying, "공격 전에는 피격 플래시가 재생 중이면 안 됩니다.");
+                Assert.IsFalse(enemyDamagePopup.gameObject.activeSelf, "공격 전에는 데미지 팝업이 비활성 상태여야 합니다.");
+
+                int enemyHpBefore = bootstrap.Session.CurrentEnemy.GetHp();
+                int playerHpBefore = bootstrap.Session.Player.GetHp();
+
+                var buttonRow = exploreController.transform.Find("ButtonRow");
+                var attackButton = FindButtonByLabelPrefix(buttonRow, "1.");
+                Assert.IsNotNull(attackButton, "'1. 일반 공격' 버튼을 찾을 수 없습니다.");
+
+                attackButton.onClick.Invoke();
+
+                Assert.AreEqual(GameState.BATTLE, bootstrap.Session.CurrentState,
+                    "이 테스트가 유효하려면 한 번의 공격 교환으로 전투가 끝나지 않아야 합니다(설계상 항상 성립).");
+
+                int enemyHpAfter = bootstrap.Session.CurrentEnemy.GetHp();
+                int playerHpAfter = bootstrap.Session.Player.GetHp();
+                Assert.Less(enemyHpAfter, enemyHpBefore, "적이 이번 턴에 실제로 피해를 입어야 합니다.");
+                Assert.Less(playerHpAfter, playerHpBefore, "플레이어도 적의 반격으로 실제로 피해를 입어야 합니다.");
+
+                // 클릭 처리(코루틴 StartCoroutine)는 onClick.Invoke() 안에서 첫 yield 전까지 동기
+                // 실행되므로, 이 시점에 이미 플래시 색이 바뀌어 있고 코루틴이 진행 중이어야 한다.
+                Assert.IsTrue(enemyHitFlash.IsPlaying, "적이 피해를 입으면 EnemyHitFlash 코루틴이 즉시 실행 중이어야 합니다.");
+                Assert.IsTrue(playerHitFlash.IsPlaying, "플레이어가 피해를 입으면 PlayerHitFlash 코루틴이 즉시 실행 중이어야 합니다.");
+                Assert.AreEqual((Color)UIColors.HitFlash, enemyImage.color, "피격 직후 EnemyPortrait 색이 HitFlash 색이어야 합니다.");
+                Assert.AreEqual((Color)UIColors.HitFlash, playerImage.color, "피격 직후 PlayerPortrait 색이 HitFlash 색이어야 합니다.");
+
+                Assert.IsTrue(enemyDamagePopup.gameObject.activeSelf, "적 데미지 팝업이 활성화되어 있어야 합니다.");
+                Assert.IsTrue(playerDamagePopup.gameObject.activeSelf, "플레이어 데미지 팝업이 활성화되어 있어야 합니다.");
+                Assert.AreEqual($"-{enemyHpBefore - enemyHpAfter}", enemyDamagePopup.CurrentText,
+                    "적 데미지 팝업 숫자가 실제 HP 감소량과 정확히 일치해야 합니다.");
+                Assert.AreEqual($"-{playerHpBefore - playerHpAfter}", playerDamagePopup.CurrentText,
+                    "플레이어 데미지 팝업 숫자가 실제 HP 감소량과 정확히 일치해야 합니다.");
+
+                // 지속시간(HitFlashEffect 0.18초, DamagePopupText 0.7초)이 모두 지나면 원상 복귀해야 한다.
+                yield return new WaitForSeconds(0.9f);
+
+                Assert.IsFalse(enemyHitFlash.IsPlaying, "충분한 시간이 지나면 피격 플래시 코루틴이 끝나 있어야 합니다.");
+                Assert.IsFalse(playerHitFlash.IsPlaying);
+                Assert.AreEqual(enemyOriginalColor, enemyImage.color, "플래시가 끝나면 EnemyPortrait 색이 원래대로 복원돼야 합니다.");
+                Assert.AreEqual(playerOriginalColor, playerImage.color, "플래시가 끝나면 PlayerPortrait 색이 원래대로 복원돼야 합니다.");
+                Assert.IsFalse(enemyDamagePopup.gameObject.activeSelf, "충분한 시간이 지나면 데미지 팝업이 다시 비활성화돼야 합니다.");
+                Assert.IsFalse(playerDamagePopup.gameObject.activeSelf);
+            }
+            finally
+            {
+                RestoreSaveFile(hadExisting, backup);
+                Application.logMessageReceived -= ConsumeKnownEditorNoiseIfMatched;
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 테스트 O: 짧은 시간 안에 Flash()/Show()를 연속 호출해도 이전 이펙트의 잔상이
+        // 남지 않고 깨끗하게 새로 시작되는지(DEC-133 신규 — "연속 공격 시 이전 이펙트가
+        // 남아있지 않고 새로 시작"). 실제 BattleSystem RNG에 의존하지 않도록, 씬에 이미
+        // 배치된 컴포넌트를 직접 호출해 결정적으로 검증한다.
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator O_HitFlashAndDamagePopup_RepeatedCalls_RestartCleanlyWithoutResidue()
+        {
+            bool hadExisting = false;
+            string backup = null;
+            Application.logMessageReceived += ConsumeKnownEditorNoiseIfMatched;
+            try
+            {
+                backup = BackupSaveFileIfExists(out hadExisting);
+                DeleteSaveFileIfExists();
+
+                yield return LoadMainScene();
+                yield return SelectWarriorAndConfirm();
+
+                var exploreController = FindController<ExplorePanelController>();
+                yield return EnterGoblinBattle(exploreController);
+
+                var enemyPortrait = exploreController.transform.Find("EnemyPortrait");
+                var enemyImage = enemyPortrait.GetComponent<Image>();
+                var enemyHitFlash = enemyPortrait.GetComponent<HitFlashEffect>();
+                var enemyDamagePopup = enemyPortrait.GetComponentInChildren<DamagePopupText>(true);
+                var popupRect = enemyDamagePopup.GetComponent<RectTransform>();
+
+                Color originalColor = enemyImage.color;
+
+                enemyHitFlash.Flash();
+                Assert.IsTrue(enemyHitFlash.IsPlaying);
+                Assert.AreEqual((Color)UIColors.HitFlash, enemyImage.color);
+
+                // 코루틴(flashDuration=0.18초)이 끝나기 전에 다시 Flash()를 호출한다 — 이전
+                // 이펙트가 중단되고 잔상 없이 새로 시작되어야 한다(원본 색이 오염되면 안 됨).
+                yield return null;
+                enemyHitFlash.Flash();
+                Assert.IsTrue(enemyHitFlash.IsPlaying, "연속 Flash() 호출 후에도 코루틴이 계속 실행 중이어야 합니다.");
+                Assert.AreEqual((Color)UIColors.HitFlash, enemyImage.color, "연속 Flash() 호출 직후에도 HitFlash 색이어야 합니다.");
+
+                yield return new WaitForSeconds(0.3f);
+                Assert.IsFalse(enemyHitFlash.IsPlaying, "충분한 시간이 지나면 코루틴이 끝나 있어야 합니다.");
+                Assert.AreEqual(originalColor, enemyImage.color,
+                    "연속 호출 이후에도 최종적으로는 최초 원본 색으로 정확히 복원되어야 합니다(잔상/오염 없음).");
+
+                enemyDamagePopup.Show(10, isHeal: false);
+                Assert.AreEqual("-10", enemyDamagePopup.CurrentText);
+                Assert.IsTrue(enemyDamagePopup.gameObject.activeSelf);
+                Vector2 startPosition = popupRect.anchoredPosition;
+
+                // 애니메이션이 진행되도록 몇 프레임 흘려보낸 뒤(팝업이 위로 떠오르는 중), 완료되기
+                // 전에 새 값으로 다시 Show()를 호출한다 — 이전 애니메이션 잔여 위치/텍스트가 아니라
+                // 새 값·시작 위치로 즉시 리셋되어야 한다. Vector2를 엄격한 값 동등 비교(==)로 검증하면
+                // RectTransform 내부 계산(anchoredPosition은 rect/anchor/pivot으로부터 매 프레임
+                // 다시 계산되는 파생값)에서 생기는 부동소수점 오차(표시상 "(0.00, 40.00)"으로 동일해
+                // 보여도 실제로는 미세하게 다른 값)로 false-positive 실패가 날 수 있어(2026-09-08
+                // 실측: `Assert.AreEqual`이 "Expected: (0.00, 40.00) But was: (0.00, 40.00)"로 실패하는
+                // 것을 재현·확인함), Vector2.Distance 기반 근사 비교로 바꿨다.
+                yield return new WaitForSeconds(0.2f);
+                Assert.Greater(Vector2.Distance(startPosition, popupRect.anchoredPosition), 0.01f,
+                    "이 어서션이 유효하려면 리셋 전에 팝업이 이미 위로 떠오르는 중이어야 합니다.");
+
+                enemyDamagePopup.Show(20, isHeal: true);
+                Assert.AreEqual("+20", enemyDamagePopup.CurrentText, "새 Show() 호출은 이전 값이 아니라 새 값으로 즉시 갱신되어야 합니다.");
+                Assert.LessOrEqual(Vector2.Distance(startPosition, popupRect.anchoredPosition), 0.01f,
+                    "새 Show() 호출 시 위치가 시작 지점으로 리셋되어야 합니다(이전 애니메이션 잔여 위치가 남으면 안 됨).");
+
+                yield return new WaitForSeconds(0.9f);
+                Assert.IsFalse(enemyDamagePopup.IsPlaying);
+                Assert.IsFalse(enemyDamagePopup.gameObject.activeSelf, "충분한 시간이 지나면 팝업이 다시 비활성화되어야 합니다.");
+            }
+            finally
+            {
+                RestoreSaveFile(hadExisting, backup);
+                Application.logMessageReceived -= ConsumeKnownEditorNoiseIfMatched;
+            }
+        }
     }
 }

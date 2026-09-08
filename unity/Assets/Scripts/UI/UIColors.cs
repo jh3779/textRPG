@@ -58,5 +58,17 @@ namespace TextRPG.UI
         public static readonly Color32 QuillInk = new Color32(0x6B, 0x4A, 0x1E, 0xFF);
         // .foldline (DEC-121) — 같은 잉크브라운 값의 알파만 낮춰 재사용(새 색상 추가 안 함)
         public static readonly Color32 FoldLine = new Color32(0x6B, 0x4A, 0x1E, 90);
+
+        // ------------------------------------------------------------------
+        // DEC-133 신규: 전투 공격 이펙트(피격 플래시·데미지 숫자 팝업) 전용 색상.
+        // docs/07_visual_style.md DEC-133, docs/06_open_questions.md DEC-133 참조.
+        // ------------------------------------------------------------------
+
+        // 피격 플래시 — 밝은 흰빛이 도는 붉은 틴트. 포트레이트 Image.color를 이 값으로 잠깐
+        // 바꿨다가 원래 색(보통 흰색)으로 되돌린다("밝은 흰색/붉은색" 요구사항을 한 값으로 근사).
+        public static readonly Color32 HitFlash = new Color32(0xFF, 0x6B, 0x6B, 0xFF);
+        // 데미지 숫자 팝업 텍스트 색은 새로 만들지 않고 기존 위험색(Tertiary, #FF8A80)을 재사용한다.
+        // 회복(포션 등) 숫자 팝업 전용 — 기존 팔레트에 초록 계열이 없어 신규로 추가.
+        public static readonly Color32 HealNumber = new Color32(0x6C, 0xC5, 0x6C, 0xFF);
     }
 }
