@@ -135,8 +135,42 @@ namespace TextRPG.EditorTools
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(320, 56), new Vector2(0, -60));
             AddOutline(continueBtn.transform, UIColors.Primary);
 
+            // ---- OQ-102/DEC-122: 세이브 덮어쓰기 확인 모달 ----
+            var overwriteOverlay = CreateFullStretch("OverwriteConfirmOverlay", root);
+            var overwriteScrim = overwriteOverlay.gameObject.AddComponent<Image>();
+            overwriteScrim.color = new Color32(0x00, 0x00, 0x00, 200);
+
+            var confirmCard = CreateAnchored("ConfirmCard", overwriteOverlay, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(440, 280), Vector2.zero);
+            var confirmCardImg = confirmCard.gameObject.AddComponent<Image>();
+            confirmCardImg.color = new Color32(0xE8, 0xDC, 0xC0, 0xFF);
+            AddBackgroundSprite(confirmCard, "material_양피지", Color.white, 1f);
+
+            CreateText("Headline", confirmCard, "기존 진행 상황을 덮어쓰시겠습니까?", 22, new Color32(0x3B, 0x33, 0x20, 0xFF),
+                TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(380, 70), new Vector2(0, -30));
+
+            CreateText("Body", confirmCard, "새 게임을 시작하면 저장된 모험가의 기록이 사라집니다.", 15,
+                new Color32(0x5B, 0x4E, 0x33, 0xFF), TextAlignmentOptions.Center,
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(380, 50), new Vector2(0, -110));
+
+            var overwriteYesBtn = CreateButton("YesButton", confirmCard, "예, 새로 시작", UIColors.Primary, Color.black,
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(190, 48), new Vector2(-100, 30));
+
+            var overwriteNoBtn = CreateButton("NoButton", confirmCard, "아니오",
+                new Color32(0, 0, 0, 0), new Color32(0x3B, 0x33, 0x20, 0xFF),
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(150, 48), new Vector2(115, 30));
+            AddOutline(overwriteNoBtn.transform, new Color32(0x8A, 0x7F, 0x68, 0xFF));
+
+            overwriteOverlay.gameObject.SetActive(false);
+
             var controller = root.gameObject.AddComponent<TitlePanelController>();
-            BindSerialized(controller, ("bootstrap", bootstrap), ("newGameButton", newGameBtn), ("continueButton", continueBtn));
+            BindSerialized(controller,
+                ("bootstrap", bootstrap),
+                ("newGameButton", newGameBtn),
+                ("continueButton", continueBtn),
+                ("overwriteConfirmRoot", overwriteOverlay.gameObject),
+                ("overwriteConfirmYesButton", overwriteYesBtn),
+                ("overwriteConfirmNoButton", overwriteNoBtn));
             return controller;
         }
 

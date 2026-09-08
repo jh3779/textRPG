@@ -15,7 +15,9 @@
  */
 
 using System;
+using System.IO;
 using TextRPG.GameLogic;
+using TextRPG.Persistence;
 using UnityEngine;
 
 namespace TextRPG.EditorTools
@@ -39,6 +41,7 @@ namespace TextRPG.EditorTools
             passed += Check("BattleSystem 전체 전투 시뮬레이션(고블린전)", TestFullGoblinBattleSimulation);
             passed += Check("CharacterClassDatabase 3직업 수치(와이어프레임 S-002 기준)", TestCharacterClassStats);
             passed += Check("GameSession 새 게임→직업 확정→전투→승리 전체 플로우", TestGameSessionFullPlaythroughToVictoryPossible);
+            passed += Check("OQ-102/DEC-122: SaveSystem.SaveExists()가 새 게임 덮어쓰기 확인 모달 표시 조건과 일치", TestSaveExistsDetection);
 
             Debug.Log($"[RegressionSmokeTest] ALL PASSED ({passed} checks)");
         }
@@ -231,6 +234,43 @@ namespace TextRPG.EditorTools
             var mage = CharacterClassDatabase.Get("mage");
             Assert(mage.BaseHp == 75 && mage.BaseAttack == 17 && mage.BaseDefense == 1,
                 "마법사 HP75/ATK17/DEF1");
+        }
+
+        /// <summary>
+        /// OQ-102(DEC-122): TitlePanelController.OnNewGameClicked()가 덮어쓰기 확인 모달을
+        /// 띄울지 판단하는 근거가 정확히 SaveSystem.SaveExists()이므로, 그 감지 자체가
+        /// 파일 존재/부재에 정확히 반응하는지 회귀 확인한다(MonoBehaviour 버튼 클릭 배선
+        /// 자체는 Play Mode 없이는 검증 불가 — 최종 보고서 참조).
+        /// 실제 로컬 세이브가 있어도 안전하도록 백업/복원한다.
+        /// </summary>
+        private static void TestSaveExistsDetection()
+        {
+            string path = SaveSystem.GetSavePath();
+            bool hadExistingFile = File.Exists(path);
+            string backup = hadExistingFile ? File.ReadAllText(path) : null;
+            try
+            {
+                if (hadExistingFile)
+                {
+                    File.Delete(path);
+                }
+                Assert(!SaveSystem.SaveExists(), "세이브 파일이 없으면 SaveExists()==false여야 함(모달을 띄우지 않는 조건)");
+
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(path, "{}");
+                Assert(SaveSystem.SaveExists(), "세이브 파일이 있으면 SaveExists()==true여야 함(모달을 띄우는 조건)");
+            }
+            finally
+            {
+                if (hadExistingFile)
+                {
+                    File.WriteAllText(path, backup);
+                }
+                else if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
         }
 
         private static void TestGameSessionFullPlaythroughToVictoryPossible()
