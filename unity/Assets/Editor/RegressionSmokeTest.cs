@@ -66,6 +66,28 @@ namespace TextRPG.EditorTools
             passed += Check("DEC-125: 던전 수호자 보스전 조우 시 4개 포트레이트 변종이 전부 무작위로 나오고, 스탯은 항상 균형형 그대로 동일해야 함",
                 TestGuardianPortraitVariantSelectionKeepsStatsFixed);
 
+            // 신규(DEC-129): 무기/방어구 장착·교체 시스템 + 3가지 획득 경로(무기고 구매/몬스터 드롭/탐색 상자)
+            passed += Check("DEC-129: 무기 교체(장검→대검) 시 HP/ATK/공격속도가 정확히 재계산되어야 함",
+                TestWeaponSwapChangesStatsExactly);
+            passed += Check("DEC-129: 크로스 직업 무기 장착은 거부되고 기존 장비가 유지되어야 함",
+                TestCrossClassWeaponEquipIsRejected);
+            passed += Check("DEC-129: 방어구 장착/해제/교체는 DEF·공격속도·HP·마나만 바꾸고 ATK는 절대 바꾸지 않아야 함",
+                TestArmorEquipUnequipNeverChangesAttackButChangesOthers);
+            passed += Check("DEC-129: 무기+방어구를 동시에 장착하면 두 보너스가 각 스탯에 올바르게 합산되어야 함",
+                TestWeaponAndArmorBonusesStackIndependently);
+            passed += Check("DEC-129: 고블린 처치 시 신규 무기·가죽 갑옷이 설계된 확률 근방으로 드롭되어야 함(통계적 근사)",
+                TestGoblinDefeatSometimesDropsNewWeaponAndLeatherArmor);
+            passed += Check("DEC-129: 던전 수호자 처치 시 직업 전용 신규 무기 + 강화 판금 갑옷이 확정 드롭되어야 함",
+                TestGuardianDefeatGuaranteesClassWeaponAndPlateArmorDrop);
+            passed += Check("DEC-129: 상자 조사는 회차당 1회만 가능하고, 새 게임 시작 시 반드시 초기화되어야 함",
+                TestChestInvestigateOncePerRunAndResetsOnNewGame);
+            passed += Check("DEC-129: 무기고 구매는 지역/골드 조건을 지켜야 하고 성공 시 골드 차감·아이템 지급이 정확해야 함",
+                TestArmoryPurchaseRequiresLocationAndGold);
+            passed += Check("DEC-129: 레벨업 이후 무기/방어구를 교체해도 레벨업으로 얻은 영구 보너스가 사라지면 안 됨",
+                TestLevelUpBonusSurvivesEquipmentSwap);
+            passed += Check("DEC-129 Major 수정: 낡은 무기고 '장비를 챙긴다'(ATK+4)가 이후 무기 교체 후에도 사라지면 안 됨",
+                TestArmoryAttackBonusSurvivesWeaponSwap);
+
             Debug.Log($"[RegressionSmokeTest] ALL PASSED ({passed} checks)");
         }
 
@@ -791,6 +813,346 @@ namespace TextRPG.EditorTools
             Assert(session.Inventory.GetItemCount() == itemCountBefore - 1, "재료 아이템이 소모되어야 함");
             Assert(session.Player.GetMana() > 0, "마나 회복 스킬 사용 후 마나가 0보다 커야 함");
             Assert(!session.HasManaRecoveryMaterial(), "재료를 소모한 뒤에는 더 이상 감지되면 안 됨");
+        }
+
+        // ───────────────────────── 신규(DEC-129) 회귀 테스트: 무기/방어구 장착·구매·드롭·상자 ─────────────────────────
+
+        private static GameSession NewWarriorSession()
+        {
+            var session = new GameSession();
+            session.BeginNewGameFlow();
+            session.SelectPendingClass("warrior");
+            session.ConfirmClass();
+            return session;
+        }
+
+        private static void TestWeaponSwapChangesStatsExactly()
+        {
+            var session = NewWarriorSession();
+            var p = session.Player;
+
+            Assert(p.EquippedWeaponName == "장검", "전사는 장검을 장착한 채로 시작해야 함");
+            Assert(p.GetMaxHp() == 114 && p.GetAttack() == 13 && p.GetAttackSpeed() == -1,
+                $"전사 시작 스탯은 여전히 HP114/ATK13/AtkSpd-1이어야 하는데 HP{p.GetMaxHp()}/ATK{p.GetAttack()}/AtkSpd{p.GetAttackSpeed()}");
+
+            var greatsword = WeaponDatabase.GetNewWeaponForClass("warrior");
+            Assert(greatsword != null && greatsword.Name == "대검", "전사의 신규 무기는 대검이어야 함");
+
+            session.Inventory.AddItem(greatsword.CreateItem());
+            var result = session.EquipWeaponByName("대검");
+            Assert(result == EquipWeaponResult.Success, "인벤토리에 있는 자기 직업 무기 장착은 성공해야 함");
+
+            Assert(p.EquippedWeaponName == "대검", "장착 후 EquippedWeaponName이 대검으로 바뀌어야 함");
+            Assert(p.GetMaxHp() == 110 + 8, $"대검 장착 후 최대HP는 110+8=118이어야 하는데 {p.GetMaxHp()}");
+            Assert(p.GetHp() == p.GetMaxHp(), "장착 전 풀피였다면 최대HP가 늘어난 만큼 현재 HP도 같이 늘어 여전히 풀피여야 함");
+            Assert(p.GetAttack() == 10 + 6, $"대검 장착 후 ATK는 10+6=16이어야 하는데 {p.GetAttack()}");
+            Assert(p.GetAttackSpeed() == -3, $"대검 장착 후 공격속도는 -3이어야 하는데 {p.GetAttackSpeed()}");
+            Assert(p.GetMaxMana() == 10, "대검은 마나 보너스가 없으므로 최대 마나는 여전히 10이어야 함");
+            Assert(!p.HasDoubleAttack, "전사 무기는 어느 쪽도 쌍검 패시브가 없어야 함");
+            Assert(p.GetDefense() == 5, "무기 교체는 방어력에 절대 영향을 주면 안 됨");
+        }
+
+        private static void TestCrossClassWeaponEquipIsRejected()
+        {
+            var session = NewWarriorSession();
+            // 정상 경로로는 절대 발생하지 않지만(무기는 항상 자기 직업 무기만 지급/드롭/구매됨),
+            // 방어 로직 자체를 검증하기 위해 도적 전용 무기를 억지로 인벤토리에 넣어본다.
+            session.Inventory.AddItem(WeaponDatabase.Get(WeaponDatabase.Dagger).CreateItem());
+
+            var result = session.EquipWeaponByName(WeaponDatabase.Dagger);
+            Assert(result == EquipWeaponResult.WrongClass, "다른 직업 전용 무기 장착은 WrongClass로 실패해야 함");
+            Assert(session.Player.EquippedWeaponName == "장검", "실패한 장착 시도는 기존 장착 무기를 바꾸면 안 됨");
+            Assert(session.Player.GetAttack() == 13, "실패한 장착 시도는 스탯도 전혀 바꾸면 안 됨");
+        }
+
+        private static void TestArmorEquipUnequipNeverChangesAttackButChangesOthers()
+        {
+            var session = NewWarriorSession();
+            var p = session.Player;
+
+            int atkBefore = p.GetAttack();       // 13
+            int hpBefore = p.GetMaxHp();          // 114
+            int defBefore = p.GetDefense();       // 5
+            int speedBefore = p.GetAttackSpeed(); // -1
+            int manaBefore = p.GetMaxMana();      // 10
+
+            Assert(p.EquippedArmorName == null, "게임 시작 시에는 어떤 직업이든 방어구를 장착하지 않은 맨몸 상태여야 함");
+
+            session.Inventory.AddItem(ArmorDatabase.Get(ArmorDatabase.LeatherArmor).CreateItem());
+            var equipLeather = session.EquipArmorByName(ArmorDatabase.LeatherArmor);
+            Assert(equipLeather == EquipArmorResult.Success, "가죽 갑옷 장착은 성공해야 함");
+            Assert(p.EquippedArmorName == ArmorDatabase.LeatherArmor, "EquippedArmorName이 가죽 갑옷이어야 함");
+            Assert(p.GetAttack() == atkBefore, $"가죽 갑옷 장착 후에도 ATK는 그대로({atkBefore})여야 하는데 {p.GetAttack()}");
+            Assert(p.GetDefense() == defBefore + 3, $"DEF는 {defBefore}+3={defBefore + 3}이어야 하는데 {p.GetDefense()}");
+            Assert(p.GetMaxHp() == hpBefore + 8, $"최대HP는 {hpBefore}+8={hpBefore + 8}이어야 하는데 {p.GetMaxHp()}");
+            Assert(p.GetAttackSpeed() == speedBefore, "가죽 갑옷은 공격속도 보너스가 0이므로 그대로여야 함");
+            Assert(p.GetMaxMana() == manaBefore, "가죽 갑옷은 마나 보너스가 0이므로 그대로여야 함");
+
+            // 교체: 강화 판금 갑옷
+            session.Inventory.AddItem(ArmorDatabase.Get(ArmorDatabase.ReinforcedPlateArmor).CreateItem());
+            var equipPlate = session.EquipArmorByName(ArmorDatabase.ReinforcedPlateArmor);
+            Assert(equipPlate == EquipArmorResult.Success, "강화 판금 갑옷으로 교체는 성공해야 함");
+            Assert(p.GetAttack() == atkBefore, $"판금 갑옷 교체 후에도 ATK는 여전히 그대로({atkBefore})여야 하는데 {p.GetAttack()}");
+            Assert(p.GetDefense() == defBefore + 7, $"DEF는 {defBefore}+7={defBefore + 7}이어야 하는데 {p.GetDefense()}");
+            Assert(p.GetMaxHp() == hpBefore + 15, $"최대HP는 {hpBefore}+15={hpBefore + 15}이어야 하는데 {p.GetMaxHp()}");
+            Assert(p.GetAttackSpeed() == speedBefore - 2, $"공격속도는 {speedBefore}-2={speedBefore - 2}여야 하는데 {p.GetAttackSpeed()}");
+            Assert(p.GetMaxMana() == manaBefore - 3, $"최대 마나는 {manaBefore}-3={manaBefore - 3}이어야 하는데 {p.GetMaxMana()}");
+
+            // 해제: 맨몸으로
+            session.UnequipArmor();
+            Assert(p.EquippedArmorName == null, "해제 후에는 다시 맨몸(null)이어야 함");
+            Assert(p.GetAttack() == atkBefore, "해제 후에도 ATK는 계속 그대로여야 함");
+            Assert(p.GetDefense() == defBefore, "해제 후 DEF는 원래 값으로 돌아와야 함");
+            Assert(p.GetMaxHp() == hpBefore, "해제 후 최대HP는 원래 값으로 돌아와야 함");
+            Assert(p.GetAttackSpeed() == speedBefore, "해제 후 공격속도는 원래 값으로 돌아와야 함");
+            Assert(p.GetMaxMana() == manaBefore, "해제 후 최대 마나는 원래 값으로 돌아와야 함");
+        }
+
+        private static void TestWeaponAndArmorBonusesStackIndependently()
+        {
+            var session = NewWarriorSession();
+            var p = session.Player;
+
+            session.Inventory.AddItem(WeaponDatabase.GetNewWeaponForClass("warrior").CreateItem());
+            session.Inventory.AddItem(ArmorDatabase.Get(ArmorDatabase.ReinforcedPlateArmor).CreateItem());
+
+            Assert(session.EquipWeaponByName("대검") == EquipWeaponResult.Success, "대검 장착은 성공해야 함");
+            Assert(session.EquipArmorByName(ArmorDatabase.ReinforcedPlateArmor) == EquipArmorResult.Success, "판금 갑옷 장착은 성공해야 함");
+
+            // raw(무기·방어구 제외): HP110/ATK10/DEF5/Mana10. 대검(HP+8/ATK+6/AtkSpd-3) + 판금(DEF+7/HP+15/AtkSpd-2/Mana-3).
+            Assert(p.GetMaxHp() == 110 + 8 + 15, $"HP는 raw+무기+방어구=133이어야 하는데 {p.GetMaxHp()}");
+            Assert(p.GetAttack() == 10 + 6, $"ATK는 raw+무기(방어구 제외)=16이어야 하는데 {p.GetAttack()}");
+            Assert(p.GetDefense() == 5 + 7, $"DEF는 raw+방어구(무기 제외)=12여야 하는데 {p.GetDefense()}");
+            Assert(p.GetAttackSpeed() == -3 + -2, $"공격속도는 무기+방어구 합산=-5여야 하는데 {p.GetAttackSpeed()}");
+            Assert(p.GetMaxMana() == 10 + 0 - 3, $"최대 마나는 raw+무기(0)+방어구(-3)=7이어야 하는데 {p.GetMaxMana()}");
+        }
+
+        private static void TestGoblinDefeatSometimesDropsNewWeaponAndLeatherArmor()
+        {
+            int wins = 0;
+            int weaponDrops = 0;
+            int armorDrops = 0;
+            const int trials = 300;
+
+            for (int i = 0; i < trials; i++)
+            {
+                var session = NewWarriorSession();
+                session.ChooseLocationAction(1); // 던전 입구 -> 갈림길
+                session.ChooseLocationAction(2); // 오른쪽 통로 -> 어두운 통로, 고블린과 자동 전투
+
+                BattleResult? result = null;
+                int guard = 0;
+                while (result == null && guard < 1000)
+                {
+                    result = session.ProcessBattleTurn(BattleSystem.ActionAttack);
+                    guard++;
+                }
+
+                if (result == BattleResult.PLAYER_WIN)
+                {
+                    wins++;
+                    if (FindItemIndexByName(session, "대검") >= 0) weaponDrops++;
+                    if (FindItemIndexByName(session, ArmorDatabase.LeatherArmor) >= 0) armorDrops++;
+                }
+            }
+
+            Assert(wins > trials / 2, $"전사 기준 고블린전은 대부분 승리해야 통계 검증이 유효한데 {wins}/{trials}승");
+
+            double weaponRate = weaponDrops / (double)wins;
+            double armorRate = armorDrops / (double)wins;
+            // 설계값 20%/15% ± 넉넉한 여유(표본 변동성 감안, 완전히 어긋난 배선만 잡아내면 충분).
+            Assert(weaponRate > 0.08 && weaponRate < 0.35,
+                $"신규 무기 드롭률이 20% 근방이어야 하는데 {weaponRate:P1}({weaponDrops}/{wins})");
+            Assert(armorRate > 0.05 && armorRate < 0.30,
+                $"가죽 갑옷 드롭률이 15% 근방이어야 하는데 {armorRate:P1}({armorDrops}/{wins})");
+        }
+
+        private static void TestGuardianDefeatGuaranteesClassWeaponAndPlateArmorDrop()
+        {
+            bool reached = false;
+
+            for (int attempt = 0; attempt < 30 && !reached; attempt++)
+            {
+                var session = NewWarriorSession();
+                session.ChooseLocationAction(1);
+                session.ChooseLocationAction(2);
+
+                BattleResult? goblinResult = null;
+                int guard = 0;
+                while (goblinResult == null && guard < 1000)
+                {
+                    goblinResult = session.ProcessBattleTurn(BattleSystem.ActionAttack);
+                    guard++;
+                }
+                if (goblinResult != BattleResult.PLAYER_WIN)
+                {
+                    continue;
+                }
+
+                // 고블린 처치 보상/드롭(RNG)으로 인벤토리가 가득 차 있으면 보스의 확정 드롭이 자리가 없어
+                // 실패할 수 있다 — 이 테스트의 관심사는 "확정 드롭 로직 자체"이므로, 드롭 검증 전에
+                // 인벤토리를 비워 자리를 확보한다(용량 5는 그대로 유지 — 내용물만 정리).
+                while (session.Inventory.GetItemCount() > 0)
+                {
+                    session.Inventory.RemoveItem(0);
+                }
+
+                session.ChooseLocationAction(1); // 보스에게 도전
+                Assert(session.CurrentState == GameState.BATTLE, "던전 수호자와 전투가 시작되어야 함");
+
+                BattleResult? bossResult = null;
+                guard = 0;
+                while (bossResult == null && guard < 1000)
+                {
+                    bossResult = session.ProcessBattleTurn(BattleSystem.ActionAttack);
+                    guard++;
+                }
+                if (bossResult != BattleResult.PLAYER_WIN)
+                {
+                    continue;
+                }
+
+                reached = true;
+                Assert(FindItemIndexByName(session, "대검") >= 0,
+                    "던전 수호자 처치 시 직업 전용 신규 무기(대검)가 확정 드롭되어야 함");
+                Assert(FindItemIndexByName(session, ArmorDatabase.ReinforcedPlateArmor) >= 0,
+                    "던전 수호자 처치 시 강화 판금 갑옷이 확정 드롭되어야 함");
+            }
+
+            Assert(reached, "여러 번 재시도해도 던전 수호자를 처치하지 못함(테스트 환경 문제 가능성)");
+        }
+
+        private static void TestChestInvestigateOncePerRunAndResetsOnNewGame()
+        {
+            var session = NewWarriorSession();
+
+            session.ChooseLocationAction(1); // 던전 입구 -> 갈림길(상자 위치)
+            Assert(session.Map.GetCurrentLocationIndex() == 1, "갈림길로 이동해야 함");
+            Assert(session.CanInvestigateChestHere(), "갈림길에 처음 도착하면 상자를 조사할 수 있어야 함");
+
+            var firstAttempt = session.InvestigateChest();
+            Assert(firstAttempt != ChestResult.NotAvailable, "처음 시도는 NotAvailable이면 안 됨");
+            Assert(!session.CanInvestigateChestHere(), "한 번 조사한 뒤에는 같은 회차에서 다시 조사할 수 없어야 함");
+
+            var secondAttempt = session.InvestigateChest();
+            Assert(secondAttempt == ChestResult.NotAvailable, "같은 회차의 두 번째 시도는 NotAvailable이어야 함");
+
+            // 같은 GameSession 인스턴스로 "새 게임"을 다시 시작한다(DEC-123 review에서 발견된 것과
+            // 동일한 종류의 "세션 재사용 시 초기화 안 되는 버그"를 반복하지 않는지 확인).
+            session.BeginNewGameFlow();
+            session.SelectPendingClass("rogue");
+            bool confirmed = session.ConfirmClass();
+            Assert(confirmed, "2회차 직업 확정도 성공해야 함");
+
+            session.ChooseLocationAction(1); // 던전 입구 -> 갈림길
+            Assert(session.CanInvestigateChestHere(),
+                "2회차(새 게임)는 1회차의 상자 시도 이력과 무관하게 갈림길에서 다시 상자를 조사할 수 있어야 함(ConfirmClass가 초기화해야 함)");
+        }
+
+        private static void TestArmoryPurchaseRequiresLocationAndGold()
+        {
+            var session = NewWarriorSession();
+
+            Assert(session.PurchaseNewWeapon() == PurchaseWeaponResult.NotAtArmory,
+                "무기고(지역2)가 아니면 무기 구매가 실패해야 함(현재 지역: 던전 입구)");
+            Assert(session.PurchaseArmor(ArmorDatabase.LeatherArmor) == PurchaseArmorResult.NotAtArmory,
+                "무기고(지역2)가 아니면 방어구 구매가 실패해야 함");
+
+            session.ChooseLocationAction(1); // 갈림길
+            session.ChooseLocationAction(1); // 무기고(지역2)
+            Assert(session.Map.GetCurrentLocationIndex() == 2, "무기고로 이동해야 함");
+
+            Assert(session.Player.GetGold() == 0, "전투 전이라 골드는 0이어야 함");
+            Assert(session.PurchaseNewWeapon() == PurchaseWeaponResult.NotEnoughGold, "골드가 없으면 무기 구매가 실패해야 함");
+
+            session.Player.AddGold(100);
+            int beforeCount = session.Inventory.GetItemCount();
+            var weaponPurchase = session.PurchaseNewWeapon();
+            Assert(weaponPurchase == PurchaseWeaponResult.Success, "골드가 충분하면 무기 구매가 성공해야 함");
+            Assert(session.Player.GetGold() == 100 - WeaponDatabase.NewWeaponShopPrice,
+                $"구매 가격({WeaponDatabase.NewWeaponShopPrice})만큼 골드가 차감되어야 하는데 {session.Player.GetGold()}");
+            Assert(session.Inventory.GetItemCount() == beforeCount + 1, "구매한 무기가 인벤토리에 추가되어야 함");
+            Assert(FindItemIndexByName(session, "대검") >= 0, "구매한 무기(대검)가 실제로 인벤토리에 있어야 함");
+
+            var armorPurchase = session.PurchaseArmor(ArmorDatabase.LeatherArmor);
+            Assert(armorPurchase == PurchaseArmorResult.Success, "가죽 갑옷 구매가 성공해야 함");
+            Assert(FindItemIndexByName(session, ArmorDatabase.LeatherArmor) >= 0, "구매한 가죽 갑옷이 실제로 인벤토리에 있어야 함");
+        }
+
+        private static void TestLevelUpBonusSurvivesEquipmentSwap()
+        {
+            var session = NewWarriorSession();
+            var p = session.Player;
+
+            int hpBeforeLevelUp = p.GetMaxHp();   // 114
+            int atkBeforeLevelUp = p.GetAttack(); // 13
+            int defBeforeLevelUp = p.GetDefense();// 5
+
+            p.LevelUp(); // 레벨업: raw 기준선에 HP+20/ATK+3/DEF+1이 영구히 더해져야 함
+
+            Assert(p.GetMaxHp() == hpBeforeLevelUp + 20, $"레벨업 직후 최대HP는 {hpBeforeLevelUp + 20}이어야 하는데 {p.GetMaxHp()}");
+            Assert(p.GetAttack() == atkBeforeLevelUp + 3, $"레벨업 직후 ATK는 {atkBeforeLevelUp + 3}이어야 하는데 {p.GetAttack()}");
+            Assert(p.GetDefense() == defBeforeLevelUp + 1, $"레벨업 직후 DEF는 {defBeforeLevelUp + 1}이어야 하는데 {p.GetDefense()}");
+
+            // 레벨업 이후 무기를 대검으로 교체해도 레벨업 보너스가 raw 기준선에 남아 있어야 하므로,
+            // "레벨업 후 스탯 - 장검 보너스 + 대검 보너스"가 새 최종값이어야 한다(레벨업 보너스가
+            // 증발해 raw 그대로(레벨1 기준)로 되돌아가면 안 됨).
+            int hpAfterLevelUp = p.GetMaxHp();
+            int atkAfterLevelUp = p.GetAttack();
+
+            session.Inventory.AddItem(WeaponDatabase.GetNewWeaponForClass("warrior").CreateItem());
+            Assert(session.EquipWeaponByName("대검") == EquipWeaponResult.Success, "레벨업 이후에도 무기 교체는 성공해야 함");
+
+            int longswordHpDelta = WeaponDatabase.Get(WeaponDatabase.Longsword).HpDelta;   // +4
+            int greatswordHpDelta = WeaponDatabase.Get(WeaponDatabase.Greatsword).HpDelta; // +8
+            int longswordAtkDelta = WeaponDatabase.Get(WeaponDatabase.Longsword).AttackDelta;   // +3
+            int greatswordAtkDelta = WeaponDatabase.Get(WeaponDatabase.Greatsword).AttackDelta; // +6
+
+            int expectedHp = hpAfterLevelUp - longswordHpDelta + greatswordHpDelta;
+            int expectedAtk = atkAfterLevelUp - longswordAtkDelta + greatswordAtkDelta;
+
+            Assert(p.GetMaxHp() == expectedHp,
+                $"레벨업 보너스가 유지된 채 무기만 교체됐다면 최대HP는 {expectedHp}여야 하는데 {p.GetMaxHp()}(레벨업 보너스가 증발했다면 버그)");
+            Assert(p.GetAttack() == expectedAtk,
+                $"레벨업 보너스가 유지된 채 무기만 교체됐다면 ATK는 {expectedAtk}여야 하는데 {p.GetAttack()}(레벨업 보너스가 증발했다면 버그)");
+            Assert(p.GetDefense() == defBeforeLevelUp + 1, "무기 교체는 방어력에 영향을 주지 않으므로 레벨업 DEF 보너스가 그대로 유지되어야 함");
+        }
+
+        /// <summary>
+        /// review-verify-agent Major 확인 회귀 재현 테스트: 낡은 무기고 "장비를 챙긴다"(GameSession.cs
+        /// location 2, choice 1)가 주는 ATK+4는 Player.SetAttack()으로 attack 필드를 직접 덮어썼는데,
+        /// 이는 raw 기준선(baseAttackNoWeapon)을 거치지 않아 이후 무기를 교체하면 RecomputeStats()가
+        /// raw+새 무기 보너스로 값을 재계산해버려 +4가 조용히 증발했다(전사 ATK 13→17→[무기 교체]→16으로
+        /// 오히려 감소). Player.AddPermanentAttackBonus()로 교체해 raw 기준선에 반영하도록 수정했으므로,
+        /// 이 테스트는 "장비를 챙긴다 → 무기 교체" 순서로 실제 진행해 ATK+4 보너스가 계속 유지되는지 확인한다.
+        /// </summary>
+        private static void TestArmoryAttackBonusSurvivesWeaponSwap()
+        {
+            var session = NewWarriorSession();
+            session.ChooseLocationAction(1); // 던전 입구 -> 갈림길
+            session.ChooseLocationAction(1); // 왼쪽 빛 -> 무기고(지역 2)
+            Assert(session.Map.GetCurrentLocationIndex() == 2, "무기고로 이동해야 함");
+
+            int atkBeforeLoot = session.Player.GetAttack(); // 13
+            session.ChooseLocationAction(1); // "장비를 챙긴다" -> ATK+4 (곧바로 어두운 통로로 이동해 고블린전 자동 진입)
+            Assert(session.Player.GetAttack() == atkBeforeLoot + 4,
+                $"장비를 챙기면 ATK가 {atkBeforeLoot + 4}여야 하는데 {session.Player.GetAttack()}");
+            Assert(session.ArmoryLooted, "ArmoryLooted가 true로 설정되어야 함");
+
+            int atkAfterLoot = session.Player.GetAttack(); // 17
+
+            // 무기 교체(장검 -> 대검): raw 기준선에 반영된 +4 보너스는 절대 사라지면 안 된다.
+            session.Inventory.AddItem(WeaponDatabase.GetNewWeaponForClass("warrior").CreateItem());
+            var equipResult = session.EquipWeaponByName("대검");
+            Assert(equipResult == EquipWeaponResult.Success, "무기 교체는 성공해야 함");
+
+            int longswordAtkDelta = WeaponDatabase.Get(WeaponDatabase.Longsword).AttackDelta;   // +3
+            int greatswordAtkDelta = WeaponDatabase.Get(WeaponDatabase.Greatsword).AttackDelta; // +6
+            int expectedAtk = atkAfterLoot - longswordAtkDelta + greatswordAtkDelta; // 17-3+6=20
+
+            Assert(session.Player.GetAttack() == expectedAtk,
+                $"무기 교체 후에도 무기고에서 얻은 ATK+4 보너스가 유지된 채 {expectedAtk}여야 하는데 {session.Player.GetAttack()}" +
+                "(만약 17이 아니라 16이 나온다면 +4 보너스가 증발한 것 — 바로 그 버그)");
         }
     }
 }

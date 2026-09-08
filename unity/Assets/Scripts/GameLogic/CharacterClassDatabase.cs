@@ -21,6 +21,13 @@
  * 새로 만든 값이다. 원본과 "동일해야 하는" 수치가 아니라 신규 콘텐츠이므로, 밸런스가
  * 필요하면 자유롭게 조정 가능하다. DEC-123부터는 이 3개 시작 무기가 실제로 스탯에 영향을
  * 준다(장착 개념을 범용으로 만들지 않고, 이 3종에 한해 하드코딩 수준으로만 반영 — 과설계 금지).
+ *
+ * 2026-09-08 리팩터(DEC-129): 위 최종 스탯 하드코딩을 없애고, 아래 각 직업에 "무기 보너스를 뺀
+ * 기본(raw) 스탯"과 "시작 시 장착하는 기본 무기 이름"만 넘긴다 — 실제 무기 보너스 수치는
+ * WeaponDatabase.cs 한 곳에만 존재한다(장검/단검/지팡이 보너스는 그대로 옮겨왔을 뿐 값 변경 없음).
+ * CharacterClass.BaseHp/BaseAttack/BaseMana/AttackSpeed/HasDoubleAttack 계산 프로퍼티가 여전히
+ * 위와 정확히 같은 최종값을 반환하므로, 이 리팩터링만으로는 시작 스탯이 전혀 바뀌지 않는다
+ * (RegressionSmokeTest.TestCharacterClassStats가 그대로 통과해야 함).
  */
 
 using System.Collections.Generic;
@@ -44,45 +51,43 @@ namespace TextRPG.GameLogic
 
         private static readonly Dictionary<string, CharacterClass> Classes = new Dictionary<string, CharacterClass>
         {
-            // 전사: 기본 ATK 12→10(DEC-123), 장검(HP+4/ATK+3/공격속도-1) 장착.
-            // 최종 HP=110+4=114, ATK=10+3=13, DEF=5(변경 없음), Mana=10(무기 보너스 없음), AtkSpd=0-1=-1.
+            // 전사: 기본(raw) ATK 12→10(DEC-123). 시작 시 장검(HP+4/ATK+3/공격속도-1, WeaponDatabase 참조) 장착.
+            // 최종값(BaseHp/BaseAttack/AttackSpeed 계산 프로퍼티) = raw + 장검 보너스 = HP114/ATK13/AtkSpd-1(변경 없음).
             [WarriorId] = new CharacterClass(
                 WarriorId, "전사", "char_전사_상반신.png",
-                baseHp: 110 + 4, baseAttack: 10 + 3, baseDefense: 5,
-                baseMana: 10, attackSpeed: 0 - 1, hasDoubleAttack: false,
+                baseHpRaw: 110, baseAttackRaw: 10, baseDefense: 5, baseManaRaw: 10,
+                defaultWeaponName: WeaponDatabase.Longsword,
                 manaSkill: ManaSkillType.PowerStrike, manaSkillName: "강타", manaSkillCost: 5,
                 startingItemsFactory: () => new List<Item>
                 {
-                    new Item("장검", ItemType.WEAPON, 8, 60,
-                        "전사가 사용하는 묵직한 장검입니다. (장착 보너스: HP+4/ATK+3/공격속도-1)")
+                    WeaponDatabase.Get(WeaponDatabase.Longsword).CreateItem()
                 }),
 
-            // 도적: 기본 ATK 14→16(DEC-123), 단검 2자루(공격속도+3/HP-5/기본 공격 2회 타격) 장착.
-            // 최종 HP=90-5=85, ATK=16(무기 자체 ATK 보너스 없음), DEF=2(변경 없음), Mana=15, AtkSpd=0+3=3.
+            // 도적: 기본(raw) ATK 14→16(DEC-123). 시작 시 단검(공격속도+3/HP-5/기본 공격 2회 타격) 장착.
+            // 단검 2자루를 인벤토리에 갖고 시작하지만(서사상 "쌍검"), 장착 로직 관점에서는 이름 "단검" 하나가
+            // 곧 그 보너스를 대표한다(WeaponDatabase.Dagger 참조) — 최종값 = raw(HP90/ATK16) + 단검 보너스
+            // = HP85/ATK16(변경 없음)/AtkSpd+3.
             [RogueId] = new CharacterClass(
                 RogueId, "도적", "char_도적_상반신.png",
-                baseHp: 90 - 5, baseAttack: 16, baseDefense: 2,
-                baseMana: 15, attackSpeed: 0 + 3, hasDoubleAttack: true,
+                baseHpRaw: 90, baseAttackRaw: 16, baseDefense: 2, baseManaRaw: 15,
+                defaultWeaponName: WeaponDatabase.Dagger,
                 manaSkill: ManaSkillType.PoisonStrike, manaSkillName: "맹독 일격", manaSkillCost: 7,
                 startingItemsFactory: () => new List<Item>
                 {
-                    new Item("단검", ItemType.WEAPON, 5, 40,
-                        "도적이 사용하는 가벼운 단검입니다. (2자루 동시 장착 보너스: 공격속도+3/HP-5, 기본 공격 2회 타격)"),
-                    new Item("단검", ItemType.WEAPON, 5, 40,
-                        "도적이 사용하는 가벼운 단검입니다. (2자루 동시 장착 보너스: 공격속도+3/HP-5, 기본 공격 2회 타격)")
+                    WeaponDatabase.Get(WeaponDatabase.Dagger).CreateItem(),
+                    WeaponDatabase.Get(WeaponDatabase.Dagger).CreateItem()
                 }),
 
-            // 마법사: 기본 ATK 17(변경 없음), 지팡이(공격속도+1/ATK+2/마나+2) 장착.
-            // 최종 HP=75(변경 없음), ATK=17+2=19, DEF=1(변경 없음), Mana=30(기본)+2=32, AtkSpd=0+1=1.
+            // 마법사: 기본(raw) ATK 17(변경 없음). 시작 시 지팡이(공격속도+1/ATK+2/마나+2) 장착.
+            // 최종값 = raw(HP75/ATK17/Mana30) + 지팡이 보너스 = HP75(변경 없음)/ATK19/Mana32/AtkSpd+1(변경 없음).
             [MageId] = new CharacterClass(
                 MageId, "마법사", "char_마법사_상반신.png",
-                baseHp: 75, baseAttack: 17 + 2, baseDefense: 1,
-                baseMana: 30 + 2, attackSpeed: 0 + 1, hasDoubleAttack: false,
+                baseHpRaw: 75, baseAttackRaw: 17, baseDefense: 1, baseManaRaw: 30,
+                defaultWeaponName: WeaponDatabase.Staff,
                 manaSkill: ManaSkillType.Fireball, manaSkillName: "화염구", manaSkillCost: 10,
                 startingItemsFactory: () => new List<Item>
                 {
-                    new Item("지팡이", ItemType.WEAPON, 10, 70,
-                        "마법사가 사용하는 지팡이입니다. (장착 보너스: 공격속도+1/ATK+2/마나+2)")
+                    WeaponDatabase.Get(WeaponDatabase.Staff).CreateItem()
                 }),
         };
 

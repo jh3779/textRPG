@@ -52,6 +52,10 @@ namespace TextRPG.Persistence
                 gold = session.Player.GetGold(),
                 mana = session.Player.GetMana(),
                 max_mana = session.Player.GetMaxMana(),
+                attack_speed = session.Player.GetAttackSpeed(),
+                has_double_attack = session.Player.HasDoubleAttack ? 1 : 0,
+                equipped_weapon = session.Player.EquippedWeaponName,
+                equipped_armor = session.Player.EquippedArmorName,
                 location = session.Map.GetCurrentLocationIndex(),
                 game_round = session.GameRound,
                 armory_looted = session.ArmoryLooted ? 1 : 0,
@@ -134,7 +138,9 @@ namespace TextRPG.Persistence
                 : new Player(GameSession.PlayerDisplayName);
             player.LoadState(data.hp, data.max_hp, data.attack, data.defense,
                 data.level, data.experience, data.gold, data.class_id,
-                data.mana, data.max_mana);
+                data.mana, data.max_mana,
+                data.attack_speed, data.has_double_attack != 0,
+                data.equipped_weapon, data.equipped_armor);
 
             var map = new Map();
             map.MoveToLocation(data.location);

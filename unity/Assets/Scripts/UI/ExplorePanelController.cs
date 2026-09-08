@@ -97,7 +97,7 @@ namespace TextRPG.UI
             RenderLocation();
         }
 
-        private void RenderLocation()
+        private void RenderLocation(string extraLog = null)
         {
             var session = bootstrap.Session;
             var location = session.Map.GetCurrentLocation();
@@ -107,9 +107,11 @@ namespace TextRPG.UI
             statusLineText.text =
                 $"[라운드 {session.GameRound}] {CharacterClassDatabase.Get(session.Player.ClassId)?.DisplayName ?? session.Player.GetName()} " +
                 $"HP {session.Player.GetHp()}/{session.Player.GetMaxHp()} · ATK {session.Player.GetAttack()} · " +
-                $"Mana {session.Player.GetMana()}/{session.Player.GetMaxMana()} · Gold {session.Player.GetGold()}";
+                $"DEF {session.Player.GetDefense()} · Mana {session.Player.GetMana()}/{session.Player.GetMaxMana()} · " +
+                $"Gold {session.Player.GetGold()} · 무기 {session.Player.EquippedWeaponName} · " +
+                $"방어구 {session.Player.EquippedArmorName ?? "없음"}";
             titleText.text = location.Name;
-            bodyText.text = location.Description;
+            bodyText.text = string.IsNullOrEmpty(extraLog) ? location.Description : $"{location.Description}\n\n{extraLog}";
 
             var choices = session.GetLocationChoices();
             ClearButtons();
@@ -117,6 +119,22 @@ namespace TextRPG.UI
             {
                 int choiceNumber = i + 1;
                 CreateButton($"{choiceNumber}. {choices[i]}", () => OnLocationChoice(choiceNumber));
+            }
+
+            // 신규(DEC-129): 무기/방어구 "장착" — 인벤토리에 있는 장비 중 하나를 활성 장비로 지정한다.
+            // 같은 이름이 여러 개(예: 도적의 "단검" 2자루)여도 이름 기준으로 한 번만 버튼을 만든다.
+            CreateEquipButtons(session);
+
+            // 신규(DEC-129): 무기고(지역 2)에서 직업 전용 신규 무기 + 방어구 2종을 구매할 수 있다.
+            if (session.Map.GetCurrentLocationIndex() == 2 && session.CurrentState == GameState.PLAYING)
+            {
+                CreateArmoryPurchaseButtons(session);
+            }
+
+            // 신규(DEC-129): 갈림길(지역 1)에서 "상자를 조사한다" — 이번 회차 전체 1회 제한.
+            if (session.CanInvestigateChestHere())
+            {
+                CreateButton("상자를 조사한다", OnInvestigateChestClicked);
             }
 
             // 신규(DEC-123): "아이템 사용"(POTION만) · "휴식하기"(마나 회복, 지역당 1회) —
@@ -138,6 +156,141 @@ namespace TextRPG.UI
             {
                 CreateButton("휴식하기 (마나 회복)", OnRestClicked);
             }
+        }
+
+        /// <summary>신규(DEC-129): 인벤토리의 무기/방어구를 이름 기준으로 중복 없이 나열해 장착 버튼을 만든다.</summary>
+        private void CreateEquipButtons(GameSession session)
+        {
+            var shownWeaponNames = new HashSet<string>();
+            var shownArmorNames = new HashSet<string>();
+
+            for (int i = 0; i < session.Inventory.GetItemCount(); i++)
+            {
+                var item = session.Inventory.GetItem(i);
+
+                if (item.GetItemType() == ItemType.WEAPON && shownWeaponNames.Add(item.GetName()))
+                {
+                    string weaponName = item.GetName();
+                    bool isEquipped = weaponName == session.Player.EquippedWeaponName;
+                    CreateButton(isEquipped ? $"장착됨: {weaponName}" : $"장착: {weaponName}",
+                        () => OnEquipWeaponClicked(weaponName), interactable: !isEquipped);
+                }
+                else if (item.GetItemType() == ItemType.ARMOR && shownArmorNames.Add(item.GetName()))
+                {
+                    string armorName = item.GetName();
+                    bool isEquipped = armorName == session.Player.EquippedArmorName;
+                    CreateButton(isEquipped ? $"장착됨: {armorName}" : $"장착: {armorName}",
+                        () => OnEquipArmorClicked(armorName), interactable: !isEquipped);
+                }
+            }
+
+            // 신규(DEC-129): 방어구를 장착 중이면 "해제"(맨몸으로) 버튼도 항상 보여준다.
+            if (session.Player.EquippedArmorName != null)
+            {
+                CreateButton($"해제: {session.Player.EquippedArmorName}", OnUnequipArmorClicked);
+            }
+        }
+
+        /// <summary>신규(DEC-129): 무기고(지역 2) 전용 — 직업 전용 신규 무기 1종 + 방어구 2종 구매 버튼.</summary>
+        private void CreateArmoryPurchaseButtons(GameSession session)
+        {
+            var weaponDef = WeaponDatabase.GetNewWeaponForClass(session.Player.ClassId);
+            if (weaponDef != null)
+            {
+                CreateButton($"구매: {weaponDef.Name} ({weaponDef.ShopPrice}골드)", OnPurchaseWeaponClicked);
+            }
+
+            foreach (var armorDef in ArmorDatabase.All())
+            {
+                string armorName = armorDef.Name;
+                int price = armorDef.ShopPrice;
+                CreateButton($"구매: {armorName} ({price}골드)", () => OnPurchaseArmorClicked(armorName));
+            }
+        }
+
+        private void OnEquipWeaponClicked(string weaponName)
+        {
+            bootstrap.Session.EquipWeaponByName(weaponName);
+            RenderLocation();
+        }
+
+        private void OnEquipArmorClicked(string armorName)
+        {
+            bootstrap.Session.EquipArmorByName(armorName);
+            RenderLocation();
+        }
+
+        private void OnUnequipArmorClicked()
+        {
+            bootstrap.Session.UnequipArmor();
+            RenderLocation();
+        }
+
+        private void OnPurchaseWeaponClicked()
+        {
+            var result = bootstrap.Session.PurchaseNewWeapon();
+            RenderLocation(DescribePurchaseWeaponResult(result));
+        }
+
+        private void OnPurchaseArmorClicked(string armorName)
+        {
+            var result = bootstrap.Session.PurchaseArmor(armorName);
+            RenderLocation(DescribePurchaseArmorResult(result));
+        }
+
+        private static string DescribePurchaseWeaponResult(PurchaseWeaponResult result)
+        {
+            switch (result)
+            {
+                case PurchaseWeaponResult.Success:
+                    return "무기를 구매했습니다!";
+                case PurchaseWeaponResult.NotEnoughGold:
+                    return "골드가 부족합니다.";
+                case PurchaseWeaponResult.InventoryFull:
+                    return "인벤토리가 가득 차 있습니다.";
+                default:
+                    return null;
+            }
+        }
+
+        private static string DescribePurchaseArmorResult(PurchaseArmorResult result)
+        {
+            switch (result)
+            {
+                case PurchaseArmorResult.Success:
+                    return "방어구를 구매했습니다!";
+                case PurchaseArmorResult.NotEnoughGold:
+                    return "골드가 부족합니다.";
+                case PurchaseArmorResult.InventoryFull:
+                    return "인벤토리가 가득 차 있습니다.";
+                default:
+                    return null;
+            }
+        }
+
+        private void OnInvestigateChestClicked()
+        {
+            var result = bootstrap.Session.InvestigateChest();
+            string message;
+            switch (result)
+            {
+                case ChestResult.FoundWeapon:
+                    message = "낡은 상자 안에서 쓸만한 무기를 발견했다!";
+                    break;
+                case ChestResult.FoundArmor:
+                    message = "낡은 상자 안에서 가죽 갑옷을 발견했다!";
+                    break;
+                case ChestResult.FoundGoldAndMaterial:
+                    message = "낡은 상자 안에서 약간의 금화와 재료를 발견했다!";
+                    break;
+                case ChestResult.FoundNothing:
+                    message = "상자를 열어봤지만 아무것도 없었다...";
+                    break;
+                default:
+                    message = null;
+                    break;
+            }
+            RenderLocation(message);
         }
 
         private void OnUseItemClicked(int inventoryIndex)
@@ -331,6 +484,8 @@ namespace TextRPG.UI
             sb.AppendLine($"공격속도: {p.GetAttackSpeed()}");
             sb.AppendLine($"경험치: {p.GetExperience()}/{p.GetLevel() * 100}");
             sb.AppendLine($"골드: {p.GetGold()}");
+            sb.AppendLine($"장착 무기: {p.EquippedWeaponName}");
+            sb.AppendLine($"장착 방어구: {p.EquippedArmorName ?? "없음"}");
             sb.AppendLine();
             sb.AppendLine($"[인벤토리] {session.Inventory.GetItemCount()}/{session.Inventory.GetCapacity()}");
             for (int i = 0; i < session.Inventory.GetItemCount(); i++)
@@ -360,13 +515,14 @@ namespace TextRPG.UI
             spawnedButtons.Clear();
         }
 
-        private void CreateButton(string label, UnityEngine.Events.UnityAction onClick)
+        private void CreateButton(string label, UnityEngine.Events.UnityAction onClick, bool interactable = true)
         {
             var go = Instantiate(buttonTemplate.gameObject, buttonRow);
             go.SetActive(true);
             var button = go.GetComponent<Button>();
             var text = go.GetComponentInChildren<TMP_Text>();
             if (text != null) text.text = label;
+            button.interactable = interactable; // 신규(DEC-129): "장착됨" 표시용 비활성 버튼 지원
             button.onClick.AddListener(onClick);
             spawnedButtons.Add(go);
         }

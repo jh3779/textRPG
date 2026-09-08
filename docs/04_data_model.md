@@ -66,6 +66,32 @@ EXP/골드 보상(60/25, 원본 `src/Game.cpp: Enemy goblin("고블린", 30, 7, 
 - `Enemy.attackSpeed: int` — 기본값 0. BattleSystem이 매 턴 `player.attackSpeed`와 비교해 선공을 정한다.
 - **신규 아이템 2종(ENT-105 Item)**: "마나 물약"(POTION, value=25 — "아이템 사용" 시 이름에 "마나"가 포함되어 있으면 HP 대신 마나를 회복하는 최소 분기로 처리, 낡은 무기고에서 획득) / "마나 결정"(CONSUMABLE, value=1 — 전투 중 "마나 회복" 행동이 소모하는 재료, 고블린 처치 보상으로 지급). 둘 다 콘솔 원본에는 대응 데이터가 없는 신규 콘텐츠.
 
+### ENT-107 · WeaponDefinition / ENT-108 · ArmorDefinition (신규, DEC-129 — Unity 한정)
+
+DEC-123까지는 무기 보너스가 `CharacterClassDatabase`에 "최종 스탯"으로 하드코딩돼 있었다. DEC-129부터는 무기/방어구를 여러 개 보유·교체할 수 있어야 하므로, 보너스 자체를 별도 정본 테이블(`WeaponDatabase.cs`/`ArmorDatabase.cs`)로 분리했다. `CharacterClass`(ENT-101)는 이제 "장비 제외 기본(raw) 스탯"(`baseHpRaw/baseAttackRaw/baseManaRaw/baseDefense`)과 "시작 시 자동 장착하는 기본 무기 이름"(`defaultWeaponName`)만 갖고, 기존 프로퍼티 이름(`BaseHp`/`BaseAttack`/`BaseMana`/`AttackSpeed`/`HasDoubleAttack`)은 "기본 무기를 낀 최종값"을 계산해 반환하는 방식으로 바뀌었다(값 자체는 DEC-123과 동일 — 회귀 테스트로 검증).
+
+| 필드(WeaponDefinition) | 타입 | 설명 |
+|------|------|------|
+| name | string | 무기 이름(Item.name과 동일한 키로 매칭) |
+| requiredClassId | string | 이 무기를 장착할 수 있는 유일한 직업(크로스 직업 장착 차단) |
+| hpDelta / attackDelta / speedDelta / manaDelta | int | 장착 시 기본(raw) 스탯에 더해지는 보정치(음수 가능) |
+| hasDoubleAttack | bool | true면 기본 공격이 2회 독립 타격(도적 계열 무기만) |
+| shopPrice | int | 무기고 구매 가격(기존 무기는 사실상 미사용 — 시작 시 무료 지급) |
+
+| 필드(ArmorDefinition) | 타입 | 설명 |
+|------|------|------|
+| name | string | 방어구 이름(Item.name과 매칭) |
+| defDelta / speedDelta / hpDelta / manaDelta | int | 장착 시 기본(raw) 스탯에 더해지는 보정치. **attackDelta 필드 자체가 없다 — 방어구는 ATK에 절대 관여할 수 없다**(타입 레벨 차단) |
+| shopPrice | int | 무기고 구매 가격 |
+
+**무기 2종/직업(기존+신규, DEC-129 확정)**: 전사 장검(기존, HP+4/ATK+3/AtkSpd-1)·대검(신규, HP+8/ATK+6/AtkSpd-3) / 도적 단검(기존, AtkSpd+3/HP-5/2타)·독아 단검(신규, AtkSpd+2/HP-3/ATK+3, 2타 유지) / 마법사 지팡이(기존, AtkSpd+1/ATK+2/마나+2)·수정 지팡이(신규, ATK+4/마나+5/AtkSpd-1).
+
+**방어구 2종(신규 슬롯, 직업 무관 범용)**: 가죽 갑옷(DEF+3/HP+8) / 강화 판금 갑옷(DEF+7/HP+15/AtkSpd-2/마나-3). 콘솔 원본은 물론 DEC-123에도 없던 완전 신규 슬롯이라, 게임 시작 시엔 어떤 직업이든 방어구 미착용(맨몸) 상태다.
+
+**Player(ENT-102) 신규 필드**: `equippedWeaponName: string`(항상 하나는 장착), `equippedArmorName: string?`(null이면 맨몸). `Player.RecomputeStats()`가 raw 기준선 + 현재 장착 무기 보너스 + 현재 장착 방어구 보너스를 합산해 매번 최종 HP/ATK/DEF/공격속도/마나/쌍검패시브를 다시 계산한다 — ATK는 오직 무기(raw+무기 AttackDelta)로만 정해지고 방어구는 절대 관여하지 않으며, DEF는 오직 방어구(raw+방어구 DefDelta)로만 정해지고 무기는 절대 관여하지 않는다.
+
+**획득 경로 3종**: ① 무기고(지역 2) 구매(`GameSession.PurchaseNewWeapon`/`PurchaseArmor`, 신규 무기 3종 각 20골드·가죽 갑옷 10골드·강화 판금 갑옷 20골드) ② 몬스터 드롭(고블린 처치 시 신규 무기 20%/가죽 갑옷 15%, 독립 시행 — 던전 수호자 처치 시 신규 무기+강화 판금 갑옷 확정 100%) ③ 탐색 상자(갈림길, 지역 1, 회차당 1회, 성공률 35% — 성공 시 신규 무기/가죽 갑옷/골드+재료 3갈래 균등). 가격·확률 산정 근거는 `docs/06_open_questions.md` DEC-129 참조.
+
 ## 관계 · 소유 단위
 ```
 Player 1 ── 1 CharacterClass (선택 시 확정, 이후 변경 불가)
@@ -77,6 +103,6 @@ GameSession 1 ── 1 Player, 1 Map(Location 5개), 0..1 진행 중 Enemy(전�
 
 ## 저장 · 동기화
 - 저장 위치: Unity `Application.persistentDataPath`에 로컬 JSON 파일 (콘솔 버전의 `saves/save1.txt` key=value 대신 JSON으로, 필드는 동일하게 유지)
-- 저장 필드: 기존 `version, hp, max_hp, attack, defense, level, experience, gold, location, game_round, armory_looted, goblin_defeated, item_*, quest_*` (콘솔 버전 `version=2` 포맷, architecture-audit 2026-09-04 수정분 포함) + 신규 `class_id` + 신규(2026-09-08, DEC-123) `mana, max_mana`(마나는 HP처럼 전투 간·세션 간 이월되는 지속 자원이라 저장이 필요해짐). `version` 번호는 올리지 않고(기존 2 유지) 필드만 추가했다 — 구버전 세이브(마나 필드 없음)를 읽으면 `max_mana`가 0으로 채워지는데, `Player.LoadState()`가 `savedMaxMana<=0`이면 클래스 기반 기본 마나값을 그대로 유지하도록 방어해 하위호환을 지켰다
+- 저장 필드: 기존 `version, hp, max_hp, attack, defense, level, experience, gold, location, game_round, armory_looted, goblin_defeated, item_*, quest_*` (콘솔 버전 `version=2` 포맷, architecture-audit 2026-09-04 수정분 포함) + 신규 `class_id` + 신규(2026-09-08, DEC-123) `mana, max_mana`(마나는 HP처럼 전투 간·세션 간 이월되는 지속 자원이라 저장이 필요해짐) + 신규(2026-09-08, DEC-129) `attack_speed, has_double_attack, equipped_weapon, equipped_armor`(무기/방어구를 교체할 수 있게 되면서 공격속도·쌍검 패시브·현재 장비 상태도 저장이 필요해짐). `version` 번호는 올리지 않고(기존 2 유지) 필드만 추가했다 — 구버전 세이브(이 필드들이 없음)를 읽으면 전부 기본값(0/false/빈 문자열)으로 채워지는데, `Player.LoadState()`가 `savedMaxMana<=0`이면 클래스 기반 기본 마나값을, `savedEquippedWeaponName`이 비어 있으면 캐릭터 생성 시 채워둔 기본 무기를, `savedEquippedArmorName`이 비어 있으면 맨몸 상태를 그대로 유지하도록 방어해 하위호환을 지켰다(방어구는 구버전이든 실제 맨몸이든 "필드가 비어 있으면 맨몸"이 두 경우 모두 정답이라 마나처럼 별도 구버전 판별 로직이 필요 없었다). `LoadState()`는 또한 저장된 최종 스탯(레벨업 누적분 포함)에서 현재 장착 장비의 보너스를 역산해 raw 기준선을 재구성한다 — 그렇지 않으면 로드 후 장비를 한 번이라도 교체하는 순간 레벨업 보너스가 증발하는 회귀가 생긴다(DEC-129 참조)
 - 오프라인 가용성: 완전 오프라인(로컬 파일 I/O만 사용, REQ-NF-102)
 - 동기화 시점: SCR-003의 "저장하고 종료" 선택 시에만 기록 — 자동 저장 없음(콘솔 버전과 동일한 "안전 지점 저장" 원칙 유지)

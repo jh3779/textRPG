@@ -35,6 +35,53 @@ namespace TextRPG.GameLogic
         NotUsable
     }
 
+    /// <summary>신규(DEC-129): 무기 장착 시도 결과.</summary>
+    public enum EquipWeaponResult
+    {
+        Success,
+        NotFound,
+        NotAWeapon,
+        WrongClass
+    }
+
+    /// <summary>신규(DEC-129): 방어구 장착 시도 결과. 방어구는 직업 제한이 없어 WrongClass가 없다.</summary>
+    public enum EquipArmorResult
+    {
+        Success,
+        NotFound,
+        NotAnArmor
+    }
+
+    /// <summary>신규(DEC-129): 무기고에서 직업 전용 신규 무기를 구매한 결과.</summary>
+    public enum PurchaseWeaponResult
+    {
+        Success,
+        NotAtArmory,
+        NoWeaponForClass,
+        NotEnoughGold,
+        InventoryFull
+    }
+
+    /// <summary>신규(DEC-129): 무기고에서 방어구를 구매한 결과.</summary>
+    public enum PurchaseArmorResult
+    {
+        Success,
+        NotAtArmory,
+        UnknownArmor,
+        NotEnoughGold,
+        InventoryFull
+    }
+
+    /// <summary>신규(DEC-129): 탐색 중 "상자를 조사한다"의 결과.</summary>
+    public enum ChestResult
+    {
+        NotAvailable,
+        FoundNothing,
+        FoundWeapon,
+        FoundArmor,
+        FoundGoldAndMaterial
+    }
+
     public class GameSession
     {
         public const string PlayerDisplayName = "모험가"; // 원본 Game() 생성자와 동일: new Player("모험가")
@@ -63,6 +110,36 @@ namespace TextRPG.GameLogic
 
         /// <summary>신규(DEC-123): "휴식하기" 1회당 회복되는 비율(최대 마나 대비). 30~50% 범위 내 40%로 결정.</summary>
         private const double RestManaRecoverRatio = 0.4;
+
+        // ───────────────────────── 신규(DEC-129): 장비(무기/방어구) 획득 경로 3종 ─────────────────────────
+        // restedLocationIndices와 동일한 이유(DEC-123 review-verify-agent Major)로, "상자 조사" 시도 여부도
+        // 세이브 파일에는 포함하지 않고(단순함 우선) ConfirmClass()/ResumeFromLoadedState() 양쪽에서 매번
+        // 초기화한다 — 그렇지 않으면 GameBootstrap이 재사용하는 같은 GameSession 인스턴스로 "새 게임"을
+        // 다시 시작했을 때 이전 회차에 이미 상자를 열어본 적이 있으면 새 캐릭터가 상자를 영영 못 여는
+        // 회귀가 생긴다(DEC-123에서 실제로 발견됐던 것과 동일한 종류의 버그 — TestChestAttemptResetsOnNewGame로 검증).
+
+        /// <summary>상자가 있는 지역(갈림길, 아직 다른 특별 이벤트가 없던 지역). DEC-101: 지역 5개 고정, 인덱스 불변.</summary>
+        private const int ChestLocationIndex = 1;
+
+        /// <summary>신규(DEC-129): 상자 조사 성공 확률. 30~40% 범위 내 35%로 결정(근거는 InvestigateChest 참조).</summary>
+        private const int ChestSuccessChancePercent = 35;
+
+        /// <summary>신규(DEC-129): 상자 조사 성공 시 "골드+재료" 결과로 지급되는 골드량.</summary>
+        private const int ChestGoldReward = 15;
+
+        /// <summary>신규(DEC-129): 고블린 처치 시 직업 전용 신규 무기가 드롭될 확률. 15~20% 범위 내 20%로 결정.</summary>
+        private const int GoblinWeaponDropChancePercent = 20;
+
+        /// <summary>신규(DEC-129): 고블린 처치 시 가죽 갑옷이 드롭될 확률(무기 드롭과 별개의 독립 시행).</summary>
+        private const int GoblinArmorDropChancePercent = 15;
+
+        private bool chestAttempted;
+
+        /// <summary>신규(DEC-129): 이번 회차에 아직 "상자를 조사한다"를 시도하지 않았는지(전체 1회 제한, 지역당이 아니라 게임당 1회 — 상자가 있는 지역이 하나뿐이므로 동일하다).</summary>
+        public bool CanInvestigateChestHere()
+        {
+            return CurrentState == GameState.PLAYING && Map.GetCurrentLocationIndex() == ChestLocationIndex && !chestAttempted;
+        }
 
         /// <summary>SCR-001 "새 게임" → SCR-002(CLASS_SELECT)로 전이(STATE-101).</summary>
         public void BeginNewGameFlow()
@@ -109,6 +186,7 @@ namespace TextRPG.GameLogic
             ArmoryLooted = false;
             GoblinDefeated = false;
             restedLocationIndices.Clear(); // DEC-123 수정: 새 게임 확정마다 휴식 제한을 반드시 초기화한다.
+            chestAttempted = false; // DEC-129: 상자 조사 시도 여부도 동일한 이유로 새 게임마다 반드시 초기화한다.
             CurrentState = GameState.PLAYING;
             return true;
         }
@@ -125,6 +203,7 @@ namespace TextRPG.GameLogic
             ArmoryLooted = armoryLooted;
             GoblinDefeated = goblinDefeated;
             restedLocationIndices.Clear(); // DEC-123 수정: 이어하기(로드)마다도 휴식 제한을 초기화한다.
+            chestAttempted = false; // DEC-129: 상자 조사 시도 여부도 이어하기마다 초기화한다(동일한 이유).
             CurrentState = GameState.PLAYING;
         }
 
@@ -188,7 +267,12 @@ namespace TextRPG.GameLogic
                     {
                         if (!ArmoryLooted)
                         {
-                            Player.SetAttack(Player.GetAttack() + 4);
+                            // DEC-129 Major 수정: Player.SetAttack(Player.GetAttack() + 4)는 attack 필드를
+                            // 직접 덮어써 raw 기준선(baseAttackNoWeapon)을 거치지 않는다 — 이후 무기/방어구를
+                            // 교체하면 RecomputeStats()가 raw+장비 보너스로 값을 재계산해버려 이 +4가 조용히
+                            // 증발하는 버그가 있었다(review-verify-agent Major로 실제 재현 확인). raw 기준선에
+                            // 영구 반영하는 AddPermanentAttackBonus()로 교체해 장비를 몇 번을 바꿔도 유지되게 했다.
+                            Player.AddPermanentAttackBonus(4);
                             Inventory.AddItem(new Item("작은 회복 물약", ItemType.POTION, 20, 30, "체력을 20 회복합니다."));
                             // 신규(DEC-123): 마나 물약 — "아이템 사용" 시 이름에 "마나"가 포함되어 있으면
                             // HP 대신 마나를 value만큼 회복한다(UseItem 참조).
@@ -331,6 +415,26 @@ namespace TextRPG.GameLogic
                     // 전투 중 "마나 회복" 행동을 최소 1번은 쓸 수 있게 하는 자연스러운 지급 지점.
                     Inventory.AddItem(new Item(CharacterClassDatabase.ManaRecoveryMaterialName, ItemType.CONSUMABLE, 1, 20,
                         "전투 중 '마나 회복' 행동에 사용하는 소모 재료입니다. 사용 시 최대 마나의 45%를 회복합니다."));
+
+                    // 신규(DEC-129): 몬스터 드롭 경로 — 고블린은 확정 드롭이 아니라 낮은/중간 확률로만
+                    // 직업 전용 신규 무기·가죽 갑옷을 떨어뜨린다(두 롤은 서로 독립적 — 둘 다, 하나만,
+                    // 혹은 둘 다 안 뜨는 것도 가능). "자기 직업 무기만 드롭 풀에 넣는 게 가장 단순하다"는
+                    // 지시에 따라 항상 Player.ClassId에 대응하는 무기만 후보로 삼는다(크로스 직업 드롭 없음).
+                    // 인벤토리가 가득 차 있으면 Inventory.AddItem이 false를 반환하고 조용히 실패한다 —
+                    // 기존 "마나 결정" 지급도 동일하게 실패를 특별히 알리지 않는 패턴이라 일관성을 유지했다.
+                    if (Utils.GenerateRandomNumber(1, 100) <= GoblinWeaponDropChancePercent)
+                    {
+                        var droppedWeapon = WeaponDatabase.GetNewWeaponForClass(Player.ClassId);
+                        if (droppedWeapon != null)
+                        {
+                            Inventory.AddItem(droppedWeapon.CreateItem());
+                        }
+                    }
+                    if (Utils.GenerateRandomNumber(1, 100) <= GoblinArmorDropChancePercent)
+                    {
+                        Inventory.AddItem(ArmorDatabase.Get(ArmorDatabase.LeatherArmor).CreateItem());
+                    }
+
                     Map.MoveToLocation(4);
                     CurrentState = GameState.PLAYING;
                 }
@@ -339,6 +443,16 @@ namespace TextRPG.GameLogic
             {
                 if (result == BattleResult.PLAYER_WIN)
                 {
+                    // 신규(DEC-129): 던전 수호자(최종 보스) 처치 시 직업 전용 신규 무기 + 강화 판금 갑옷을
+                    // 확정 드롭한다("확정 또는 높은 확률" 중 확정을 택함 — 별도 RNG 없이 항상 지급되므로
+                    // 코드가 더 단순하고, 이 시점은 회차의 마지막 전투라 밸런스에 영향을 줄 여지도 없다).
+                    var bossWeapon = WeaponDatabase.GetNewWeaponForClass(Player.ClassId);
+                    if (bossWeapon != null)
+                    {
+                        Inventory.AddItem(bossWeapon.CreateItem());
+                    }
+                    Inventory.AddItem(ArmorDatabase.Get(ArmorDatabase.ReinforcedPlateArmor).CreateItem());
+
                     foreach (var quest in Quests)
                     {
                         quest.UpdateProgress();
@@ -482,6 +596,220 @@ namespace TextRPG.GameLogic
             Inventory.RemoveItem(index);
             battleResult = ProcessBattleTurn(BattleSystem.ActionRecoverMana);
             return true;
+        }
+
+        // ───────────────────────── 신규(DEC-129): 장비(무기/방어구) 장착·구매·상자 획득 ─────────────────────────
+
+        /// <summary>
+        /// 신규(DEC-129): 인벤토리 인덱스로 무기를 장착한다. 아이템이 없거나 WEAPON 타입이 아니거나,
+        /// 현재 플레이어 직업과 맞지 않는 무기(크로스 직업 장착)면 실패한다 — 무기는 직업 전용이다
+        /// (전사는 검류만, 도적은 단검류만, 마법사는 지팡이류만).
+        /// </summary>
+        public EquipWeaponResult EquipWeapon(int inventoryIndex)
+        {
+            var item = Inventory?.GetItem(inventoryIndex);
+            if (item == null)
+            {
+                return EquipWeaponResult.NotFound;
+            }
+            if (item.GetItemType() != ItemType.WEAPON)
+            {
+                return EquipWeaponResult.NotAWeapon;
+            }
+
+            var weaponDef = WeaponDatabase.Get(item.GetName());
+            if (weaponDef == null || weaponDef.RequiredClassId != Player.ClassId)
+            {
+                return EquipWeaponResult.WrongClass;
+            }
+
+            Player.EquipWeapon(weaponDef);
+            return EquipWeaponResult.Success;
+        }
+
+        /// <summary>
+        /// 신규(DEC-129): 이름으로 무기를 찾아 장착한다(UI가 인벤토리를 무기 이름 기준으로 중복 제거해
+        /// 보여줄 때 편의용 — 예: 도적의 "단검" 2자루 중 아무 인덱스나 찾아 장착). 같은 이름의 첫 번째
+        /// WEAPON 아이템을 찾아 EquipWeapon(index)에 위임한다.
+        /// </summary>
+        public EquipWeaponResult EquipWeaponByName(string weaponName)
+        {
+            for (int i = 0; i < (Inventory?.GetItemCount() ?? 0); i++)
+            {
+                var item = Inventory.GetItem(i);
+                if (item.GetItemType() == ItemType.WEAPON && item.GetName() == weaponName)
+                {
+                    return EquipWeapon(i);
+                }
+            }
+            return EquipWeaponResult.NotFound;
+        }
+
+        /// <summary>
+        /// 신규(DEC-129): 인벤토리 인덱스로 방어구를 장착한다. 방어구는 직업 제한이 없어(범용) 무기보다
+        /// 검증이 단순하다 — 아이템이 없거나 ARMOR 타입이 아니면 실패.
+        /// </summary>
+        public EquipArmorResult EquipArmor(int inventoryIndex)
+        {
+            var item = Inventory?.GetItem(inventoryIndex);
+            if (item == null)
+            {
+                return EquipArmorResult.NotFound;
+            }
+            if (item.GetItemType() != ItemType.ARMOR)
+            {
+                return EquipArmorResult.NotAnArmor;
+            }
+
+            var armorDef = ArmorDatabase.Get(item.GetName());
+            if (armorDef == null)
+            {
+                return EquipArmorResult.NotAnArmor;
+            }
+
+            Player.EquipArmor(armorDef);
+            return EquipArmorResult.Success;
+        }
+
+        /// <summary>신규(DEC-129): 이름으로 방어구를 찾아 장착한다(EquipWeaponByName과 동일한 편의 패턴).</summary>
+        public EquipArmorResult EquipArmorByName(string armorName)
+        {
+            for (int i = 0; i < (Inventory?.GetItemCount() ?? 0); i++)
+            {
+                var item = Inventory.GetItem(i);
+                if (item.GetItemType() == ItemType.ARMOR && item.GetName() == armorName)
+                {
+                    return EquipArmor(i);
+                }
+            }
+            return EquipArmorResult.NotFound;
+        }
+
+        /// <summary>신규(DEC-129): 방어구를 벗는다(맨몸으로). 인벤토리에서 아이템이 사라지지는 않는다 — "장착 해제"일 뿐, 버리기가 아니다.</summary>
+        public void UnequipArmor()
+        {
+            Player?.UnequipArmor();
+        }
+
+        /// <summary>
+        /// 신규(DEC-129): 무기고(지역 2)에서 플레이어 직업 전용 신규 무기(대검/독아 단검/수정 지팡이)를
+        /// 구매한다. 가격은 WeaponDatabase.NewWeaponShopPrice(20골드)로 통일했다.
+        ///
+        /// ⚠️ 가격 근거(오케스트레이터 제안 150~250골드에서 의도적으로 낮춘 이유): 이 게임은 선형
+        /// 구조(5개 지역, 되돌아갈 수 없음)이고 골드 수입원이 몬스터 처치 보상뿐이다. 무기고(지역 2)는
+        /// 갈림길(지역 1) 이후 첫 방문 시 항상 골드 0인 상태로 도달하므로, 그 시점엔 구매가 애초에
+        /// 불가능하다 — 유일한 실제 구매 기회는 고블린을 처치(골드+25)한 뒤 갈림길로 되돌아가
+        /// 무기고를 다시 방문하는 경로뿐이다(맵 자체가 이 왕복을 허용함 — GetLocationChoices 참조).
+        /// 즉 최종 보스전 전까지 현실적으로 모을 수 있는 최대 골드는 25이므로, 150~250골드는
+        /// 이론상 절대 도달 불가능한 가격이 되어 "구매"라는 획득 경로 자체가 사실상 죽은 기능이
+        /// 된다. 20골드로 낮춰 고블린 처치 보상만으로 실제로 살 수 있게 했다 — 그럼에도 회복
+        /// 물약(30~50골드로 표시돼 있지만 실제로 소비되는 값은 아님)류보다 낮아 보일 수 있으나,
+        /// 이 게임에서 유일하게 "실제로 골드를 소비하는" 아이템이므로 상대적으로는 가장 비싼
+        /// 구매 대상이다.
+        /// </summary>
+        public PurchaseWeaponResult PurchaseNewWeapon()
+        {
+            if (CurrentState != GameState.PLAYING || Map.GetCurrentLocationIndex() != 2)
+            {
+                return PurchaseWeaponResult.NotAtArmory;
+            }
+
+            var weaponDef = WeaponDatabase.GetNewWeaponForClass(Player.ClassId);
+            if (weaponDef == null)
+            {
+                return PurchaseWeaponResult.NoWeaponForClass;
+            }
+            if (Player.GetGold() < weaponDef.ShopPrice)
+            {
+                return PurchaseWeaponResult.NotEnoughGold;
+            }
+            if (Inventory.IsFull())
+            {
+                return PurchaseWeaponResult.InventoryFull;
+            }
+
+            Player.AddGold(-weaponDef.ShopPrice);
+            Inventory.AddItem(weaponDef.CreateItem());
+            return PurchaseWeaponResult.Success;
+        }
+
+        /// <summary>
+        /// 신규(DEC-129): 무기고(지역 2)에서 방어구를 구매한다(가죽 갑옷·강화 판금 갑옷 둘 다 구매 대상 —
+        /// 무기와 달리 직업 제한이 없다). 가격 근거는 PurchaseNewWeapon과 동일한 경제 제약을 따른다 —
+        /// 가죽 갑옷(10골드)은 첫 고블린 처치 보상(25골드)만으로도 여유 있게 살 수 있고, 강화 판금
+        /// 갑옷(20골드, 신규 무기와 동일 가격대)은 "고가"로 자리매김하되 여전히 실제로 도달 가능하다.
+        /// </summary>
+        public PurchaseArmorResult PurchaseArmor(string armorName)
+        {
+            if (CurrentState != GameState.PLAYING || Map.GetCurrentLocationIndex() != 2)
+            {
+                return PurchaseArmorResult.NotAtArmory;
+            }
+
+            var armorDef = ArmorDatabase.Get(armorName);
+            if (armorDef == null)
+            {
+                return PurchaseArmorResult.UnknownArmor;
+            }
+            if (Player.GetGold() < armorDef.ShopPrice)
+            {
+                return PurchaseArmorResult.NotEnoughGold;
+            }
+            if (Inventory.IsFull())
+            {
+                return PurchaseArmorResult.InventoryFull;
+            }
+
+            Player.AddGold(-armorDef.ShopPrice);
+            Inventory.AddItem(armorDef.CreateItem());
+            return PurchaseArmorResult.Success;
+        }
+
+        /// <summary>
+        /// 신규(DEC-129): 탐색 중 "상자를 조사한다"(갈림길, 지역 1 한정, 이번 회차 전체 1회). 30~40%
+        /// 범위 내 35% 확률로 성공하고, 성공하면 다시 세 갈래로 나뉜다(각각 약 1/3 확률) —
+        /// ① 직업 전용 신규 무기, ② 가죽 갑옷, ③ 소량의 골드(15)+마나 결정 1개. 실패(65%)하면
+        /// 아무것도 얻지 못한다. 인벤토리가 가득 차 무기/방어구를 담지 못하면 조용히 실패하고
+        /// (기존 드롭 아이템들과 동일한 패턴), 어느 쪽이든 시도 자체는 이번 회차에서 한 번만 가능하다
+        /// (CanInvestigateChestHere 참조 — DEC-123 review에서 발견된 "세션 재사용 시 초기화 안 되는
+        /// 버그"와 동일한 실수를 반복하지 않도록 ConfirmClass/ResumeFromLoadedState에서 매번 리셋한다).
+        /// </summary>
+        public ChestResult InvestigateChest()
+        {
+            if (!CanInvestigateChestHere())
+            {
+                return ChestResult.NotAvailable;
+            }
+
+            chestAttempted = true;
+
+            if (Utils.GenerateRandomNumber(1, 100) > ChestSuccessChancePercent)
+            {
+                return ChestResult.FoundNothing;
+            }
+
+            int outcomeRoll = Utils.GenerateRandomNumber(1, 3);
+            if (outcomeRoll == 1)
+            {
+                var weaponDef = WeaponDatabase.GetNewWeaponForClass(Player.ClassId);
+                if (weaponDef != null && Inventory.AddItem(weaponDef.CreateItem()))
+                {
+                    return ChestResult.FoundWeapon;
+                }
+            }
+            else if (outcomeRoll == 2)
+            {
+                if (Inventory.AddItem(ArmorDatabase.Get(ArmorDatabase.LeatherArmor).CreateItem()))
+                {
+                    return ChestResult.FoundArmor;
+                }
+            }
+
+            // outcomeRoll == 3이거나, 위 두 분기가 인벤토리 만재로 실패했으면 골드+재료로 대체한다.
+            Player.AddGold(ChestGoldReward);
+            Inventory.AddItem(new Item(CharacterClassDatabase.ManaRecoveryMaterialName, ItemType.CONSUMABLE, 1, 20,
+                "전투 중 '마나 회복' 행동에 사용하는 소모 재료입니다. 사용 시 최대 마나의 45%를 회복합니다."));
+            return ChestResult.FoundGoldAndMaterial;
         }
     }
 }

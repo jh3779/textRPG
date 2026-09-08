@@ -50,6 +50,16 @@ namespace TextRPG.Persistence
         public int mana;
         public int max_mana;
 
+        // 신규 필드(DEC-129, Unity 한정) — 무기/방어구를 장착·교체할 수 있게 되면서 공격속도·쌍검
+        // 패시브·현재 장착 중인 무기/방어구 이름도 저장이 필요해졌다. 구버전 세이브는 이 필드들이
+        // 전부 기본값(0/false/빈 문자열)으로 채워지는데, Player.LoadState()가 equipped_weapon이
+        // 비어 있으면 캐릭터 생성 시 채워둔 기본 무기를 그대로 유지하고, equipped_armor가 비어
+        // 있으면(구버전이든 실제로 맨몸이든) 방어구 없음으로 처리하도록 방어해 둠.
+        public int attack_speed;
+        public int has_double_attack; // 0/1
+        public string equipped_weapon;
+        public string equipped_armor;
+
         public int location;
         public int game_round;
         public int armory_looted;   // 0/1 (원본과 동일하게 bool 대신 int로 저장)
