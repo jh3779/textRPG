@@ -14,6 +14,7 @@
 
 using System.IO;
 using System.Linq;
+using TextRPG.GameLogic;
 using TextRPG.UI;
 using TMPro;
 using UnityEditor;
@@ -317,18 +318,36 @@ namespace TextRPG.EditorTools
             enemyPortraitImg.raycastTarget = false;
             enemyPortraitImg.enabled = false;
 
+            // 신규(DEC-137): DEC-116(07_visual_style.md)이 요구한 "인물 이미지 가장자리 페이드"를
+            // 처음 실제로 연결한다 — UIPortraitEdgeMask 커스텀 셰이더(TextRPG/UI/PortraitEdgeMask)를
+            // Image.material로 꽂고, art-assets에 있던 마스크(mask_enemy_softedge.png)의 알파 채널로
+            // 원본 알파를 곱해 가장자리를 페이드시킨다. 셰이더/마스크가 없으면(예: 아직 임포트 전)
+            // CreatePortraitEdgeMaskMaterial()이 null을 반환해 조용히 건너뛰고 기존처럼 사각형 그대로
+            // 보인다 — 마스킹 실패가 전투 진행을 막으면 안 된다.
+            var enemyMaskMaterial = CreatePortraitEdgeMaskMaterial("mask_enemy_softedge");
+            if (enemyMaskMaterial != null)
+            {
+                enemyPortraitImg.material = enemyMaskMaterial;
+            }
+
             // 신규(DEC-132): 전투 중 플레이어 캐릭터 전신 이미지 — EnemyPortrait과 대칭(x=-280)으로 배치해
             // "대립 구도"를 만든다. 평소(탐색 화면)에는 ExplorePanelController.HidePlayerPortrait()가 꺼둔다.
-            // 인물 이미지 가장자리 마스킹(DEC-116 원문)은 EnemyPortrait에도 아직 구현돼 있지 않아(코드
-            // 전수 확인, 관련 셰이더/머티리얼/마스크 이미지 없음) 이번에도 동일하게 생략했다 — 대립 구도
-            // 배치 자체가 이번 요청의 핵심이고, 원본 배경이 제거된 소스가 아니라는 문서상 전제가 여전히
-            // 유효하므로 완벽한 마스킹은 과설계로 보고 다음 작업으로 남긴다(06_open_questions.md DEC-132).
             var playerPortraitRT = CreateAnchored("PlayerPortrait", root, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                 new Vector2(360, 460), new Vector2(-280, 330));
             var playerPortraitImg = playerPortraitRT.gameObject.AddComponent<Image>();
             playerPortraitImg.preserveAspect = true;
             playerPortraitImg.raycastTarget = false;
             playerPortraitImg.enabled = false;
+
+            // 신규(DEC-137): PlayerPortrait에도 동일한 마스킹 셰이더를 적용한다(마스크만 mask_character_softedge.png로
+            // 다름). DEC-132 시점 주석은 "EnemyPortrait에도 마스킹이 없어 동일하게 생략했다"고 적었지만,
+            // 이번에 두 곳 모두 실제로 채워졌으므로 그 주석은 더 이상 사실이 아니다 — 06_open_questions.md
+            // DEC-137에 이 이력을 정직하게 남긴다.
+            var playerMaskMaterial = CreatePortraitEdgeMaskMaterial("mask_character_softedge");
+            if (playerMaskMaterial != null)
+            {
+                playerPortraitImg.material = playerMaskMaterial;
+            }
 
             // 신규(DEC-133): 전투 공격 이펙트 — 피격 플래시(HitFlashEffect)는 각 포트레이트 Image
             // 자신을 target으로 삼아 색만 잠깐 바꿨다 되돌린다(같은 GameObject에 부착).
@@ -369,6 +388,17 @@ namespace TextRPG.EditorTools
                 new Color32(0, 0, 0, 0), UIColors.Primary,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(220, 44), Vector2.zero);
             AddOutline(buttonTemplate.transform, UIColors.Primary);
+
+            // 신규(DEC-137): 아이템 아이콘(무기/방어구/포션) 버튼에 쓸 아이콘 자리. 기본은 비활성
+            // (enabled=false)이라 아이콘이 없는 대다수 버튼(이동/선택지 등)은 기존과 완전히 동일하게
+            // 보인다 — ExplorePanelController.CreateButton()이 아이콘이 있을 때만 sprite를 채우고
+            // 활성화한다(범용 아이콘 시스템이 아니라 이 버튼 템플릿 하나에만 적용 — 과설계 금지).
+            var iconRT = CreateAnchored("Icon", buttonTemplate.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(28, 28), new Vector2(24, 0));
+            var iconImg = iconRT.gameObject.AddComponent<Image>();
+            iconImg.preserveAspect = true;
+            iconImg.raycastTarget = false;
+            iconImg.enabled = false;
 
             // ---- 상태 확인 오버레이 (SCR-005/006 최소 버전) ----
             var overlayRoot = CreateFullStretch("StatusOverlay", root);
@@ -456,6 +486,38 @@ namespace TextRPG.EditorTools
                 var element = playerPortraitArtProp.GetArrayElementAtIndex(i);
                 element.FindPropertyRelative("classId").stringValue = classIds[i];
                 element.FindPropertyRelative("sprite").objectReferenceValue = LoadSprite(classPortraitFiles[i]);
+            }
+
+            // 신규(DEC-137): 인벤토리/상점(무기고) 버튼에 표시할 아이템 아이콘. WeaponDatabase/
+            // ArmorDatabase/CharacterClassDatabase의 아이템 이름 상수와 정확히 일치하는 문자열로
+            // 매칭한다(enemyPortraitArt/playerPortraitArt와 동일한 "이름→스프라이트" 패턴 재사용 —
+            // 범용 아이템 리소스 시스템을 새로 만들지 않음). 기존 포션 2종(회복 물약/작은 회복 물약)도
+            // 지금까지 아이콘이 실제로 연결된 적이 없었으므로 이번에 같이 연결한다.
+            var itemIconArtProp = so.FindProperty("itemIconArt");
+            string[] itemNames =
+            {
+                WeaponDatabase.Longsword, WeaponDatabase.Greatsword,
+                WeaponDatabase.Dagger, WeaponDatabase.VenomFangDagger,
+                WeaponDatabase.Staff, WeaponDatabase.CrystalStaff,
+                ArmorDatabase.LeatherArmor, ArmorDatabase.ReinforcedPlateArmor,
+                CharacterClassDatabase.ManaRecoveryMaterialName, CharacterClassDatabase.ManaPotionName,
+                "회복 물약", "작은 회복 물약",
+            };
+            string[] itemIconFiles =
+            {
+                "item_전사장검", "item_전사대검",
+                "item_도적단검2자루", "item_독아단검",
+                "item_마법사지팡이", "item_수정지팡이",
+                "item_가죽갑옷", "item_강화판금갑옷",
+                "item_마나결정", "item_마나포션",
+                "item_회복물약", "item_작은회복물약",
+            };
+            itemIconArtProp.arraySize = itemNames.Length;
+            for (int i = 0; i < itemNames.Length; i++)
+            {
+                var element = itemIconArtProp.GetArrayElementAtIndex(i);
+                element.FindPropertyRelative("itemName").stringValue = itemNames[i];
+                element.FindPropertyRelative("sprite").objectReferenceValue = LoadSprite(itemIconFiles[i]);
             }
 
             so.ApplyModifiedPropertiesWithoutUndo();
@@ -676,6 +738,55 @@ namespace TextRPG.EditorTools
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// 신규(DEC-137): LoadSprite와 동일한 "파일명으로 Art 폴더 전체를 재귀 검색" 패턴이지만,
+        /// 마스크 텍스처는 Sprite가 아니라 셰이더의 _MaskTex 슬롯에 꽂을 원본 Texture2D가 필요해
+        /// t:Texture2D로 검색한다(TextureImporterType이 Sprite여도 메인 오브젝트는 여전히 Texture2D).
+        /// </summary>
+        private static Texture2D LoadTexture(string fileNameWithoutExtension)
+        {
+            var guids = AssetDatabase.FindAssets($"{fileNameWithoutExtension} t:Texture2D", new[] { ArtRoot });
+            foreach (var guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (Path.GetFileNameWithoutExtension(path) == fileNameWithoutExtension)
+                {
+                    return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 신규(DEC-137): PlayerPortrait/EnemyPortrait 전용 가장자리 페이드 머티리얼을 만든다.
+        /// 셰이더(Assets/Art/Shaders/UIPortraitEdgeMask.shader)나 마스크 텍스처를 찾지 못하면 null을
+        /// 반환해 호출부가 조용히 마스킹을 건너뛰게 한다 — 마스킹은 장식적 효과이지 전투 진행에
+        /// 필수가 아니므로, 실패해도 기존처럼 사각형 이미지가 그대로 보이는 것으로 안전하게 대체된다
+        /// (범용 마스킹 프레임워크가 아니라 이 두 호출부 전용 — 과설계 금지).
+        /// </summary>
+        private static Material CreatePortraitEdgeMaskMaterial(string maskFileNameWithoutExtension)
+        {
+            var shader = Shader.Find("TextRPG/UI/PortraitEdgeMask");
+            if (shader == null)
+            {
+                Debug.LogWarning("[ProjectSetupTool] TextRPG/UI/PortraitEdgeMask 셰이더를 찾을 수 없어 " +
+                    $"'{maskFileNameWithoutExtension}' 마스킹을 건너뜁니다.");
+                return null;
+            }
+
+            var maskTexture = LoadTexture(maskFileNameWithoutExtension);
+            if (maskTexture == null)
+            {
+                Debug.LogWarning($"[ProjectSetupTool] 마스크 텍스처 '{maskFileNameWithoutExtension}'를 찾을 수 없어 " +
+                    "마스킹을 건너뜁니다.");
+                return null;
+            }
+
+            var material = new Material(shader) { name = $"Mat_{maskFileNameWithoutExtension}" };
+            material.SetTexture("_MaskTex", maskTexture);
+            return material;
         }
 
         private static void BindSerialized(Object target, params (string field, Object value)[] bindings)

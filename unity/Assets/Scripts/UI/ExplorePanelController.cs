@@ -59,6 +59,20 @@ namespace TextRPG.UI
             public Sprite sprite;
         }
 
+        /// <summary>
+        /// 신규(DEC-137): 인벤토리/상점(무기고) 버튼에 표시할 아이템 아이콘. Item에는 아이콘 필드가
+        /// 없으므로(게임 로직 변경 금지 — 순수 UI/비주얼 연결 작업) enemyPortraitArt/playerPortraitArt와
+        /// 동일한 "이름→스프라이트" 매칭 패턴을 그대로 재사용한다. itemName은 WeaponDatabase/
+        /// ArmorDatabase/CharacterClassDatabase의 이름 상수(Item.GetName()이 반환하는 값)와 정확히
+        /// 일치해야 한다.
+        /// </summary>
+        [Serializable]
+        public class ItemIconArt
+        {
+            public string itemName;
+            public Sprite sprite;
+        }
+
         [SerializeField] private GameBootstrap bootstrap;
         [SerializeField] private Image backgroundImage;
         [SerializeField] private TMP_Text statusLineText;
@@ -81,6 +95,9 @@ namespace TextRPG.UI
         [SerializeField] private HitFlashEffect playerHitFlash;
         [SerializeField] private DamagePopupText enemyDamagePopup;
         [SerializeField] private DamagePopupText playerDamagePopup;
+
+        [Header("아이템 아이콘 (DEC-137 — 인벤토리/상점 버튼에 표시)")]
+        [SerializeField] private List<ItemIconArt> itemIconArt = new List<ItemIconArt>();
 
         [Header("상태 확인 오버레이 (SCR-005/006 최소 버전)")]
         [SerializeField] private GameObject statusOverlayRoot;
@@ -172,7 +189,8 @@ namespace TextRPG.UI
 
                 int index = i;
                 string effect = item.GetName().Contains("마나") ? $"마나 +{item.GetValue()}" : $"HP +{item.GetValue()}";
-                CreateButton($"아이템 사용: {item.GetName()} ({effect})", () => OnUseItemClicked(index));
+                CreateButton($"아이템 사용: {item.GetName()} ({effect})", () => OnUseItemClicked(index),
+                    icon: GetItemIcon(item.GetName()));
             }
 
             if (session.CanRestHere())
@@ -196,21 +214,22 @@ namespace TextRPG.UI
                     string weaponName = item.GetName();
                     bool isEquipped = weaponName == session.Player.EquippedWeaponName;
                     CreateButton(isEquipped ? $"장착됨: {weaponName}" : $"장착: {weaponName}",
-                        () => OnEquipWeaponClicked(weaponName), interactable: !isEquipped);
+                        () => OnEquipWeaponClicked(weaponName), interactable: !isEquipped, icon: GetItemIcon(weaponName));
                 }
                 else if (item.GetItemType() == ItemType.ARMOR && shownArmorNames.Add(item.GetName()))
                 {
                     string armorName = item.GetName();
                     bool isEquipped = armorName == session.Player.EquippedArmorName;
                     CreateButton(isEquipped ? $"장착됨: {armorName}" : $"장착: {armorName}",
-                        () => OnEquipArmorClicked(armorName), interactable: !isEquipped);
+                        () => OnEquipArmorClicked(armorName), interactable: !isEquipped, icon: GetItemIcon(armorName));
                 }
             }
 
             // 신규(DEC-129): 방어구를 장착 중이면 "해제"(맨몸으로) 버튼도 항상 보여준다.
             if (session.Player.EquippedArmorName != null)
             {
-                CreateButton($"해제: {session.Player.EquippedArmorName}", OnUnequipArmorClicked);
+                CreateButton($"해제: {session.Player.EquippedArmorName}", OnUnequipArmorClicked,
+                    icon: GetItemIcon(session.Player.EquippedArmorName));
             }
         }
 
@@ -220,14 +239,16 @@ namespace TextRPG.UI
             var weaponDef = WeaponDatabase.GetNewWeaponForClass(session.Player.ClassId);
             if (weaponDef != null)
             {
-                CreateButton($"구매: {weaponDef.Name} ({weaponDef.ShopPrice}골드)", OnPurchaseWeaponClicked);
+                CreateButton($"구매: {weaponDef.Name} ({weaponDef.ShopPrice}골드)", OnPurchaseWeaponClicked,
+                    icon: GetItemIcon(weaponDef.Name));
             }
 
             foreach (var armorDef in ArmorDatabase.All())
             {
                 string armorName = armorDef.Name;
                 int price = armorDef.ShopPrice;
-                CreateButton($"구매: {armorName} ({price}골드)", () => OnPurchaseArmorClicked(armorName));
+                CreateButton($"구매: {armorName} ({price}골드)", () => OnPurchaseArmorClicked(armorName),
+                    icon: GetItemIcon(armorName));
             }
         }
 
@@ -433,7 +454,8 @@ namespace TextRPG.UI
                 any = true;
                 int index = i;
                 string effect = item.GetName().Contains("마나") ? $"마나 +{item.GetValue()}" : $"HP +{item.GetValue()}";
-                CreateButton($"{item.GetName()} ({effect})", () => OnUseBattleItemClicked(index));
+                CreateButton($"{item.GetName()} ({effect})", () => OnUseBattleItemClicked(index),
+                    icon: GetItemIcon(item.GetName()));
             }
 
             if (!any)
@@ -713,7 +735,7 @@ namespace TextRPG.UI
             spawnedButtons.Clear();
         }
 
-        private void CreateButton(string label, UnityEngine.Events.UnityAction onClick, bool interactable = true)
+        private void CreateButton(string label, UnityEngine.Events.UnityAction onClick, bool interactable = true, Sprite icon = null)
         {
             var go = Instantiate(buttonTemplate.gameObject, buttonRow);
             go.SetActive(true);
@@ -722,7 +744,45 @@ namespace TextRPG.UI
             if (text != null) text.text = label;
             button.interactable = interactable; // 신규(DEC-129): "장착됨" 표시용 비활성 버튼 지원
             button.onClick.AddListener(onClick);
+
+            // 신규(DEC-137): icon이 주어지면 버튼 왼쪽의 Icon Image(ProjectSetupTool.BuildExplorePanel이
+            // ButtonTemplate에 미리 만들어 둠, 기본은 비활성)를 채우고, 라벨 텍스트가 아이콘과 겹치지
+            // 않도록 왼쪽 여백을 넓힌다. icon이 null이면(대다수 버튼) 기존과 완전히 동일하게 동작한다.
+            var iconImage = go.transform.Find("Icon")?.GetComponent<Image>();
+            if (iconImage != null)
+            {
+                iconImage.sprite = icon;
+                iconImage.enabled = icon != null;
+            }
+            if (text != null)
+            {
+                var labelRT = text.rectTransform;
+                labelRT.offsetMin = new Vector2(icon != null ? 44f : 0f, labelRT.offsetMin.y);
+            }
+
             spawnedButtons.Add(go);
+        }
+
+        /// <summary>
+        /// 신규(DEC-137): itemName과 정확히 일치하는 itemIconArt 항목의 스프라이트를 찾는다.
+        /// 매칭 실패(itemIconArt가 비어있거나 이름이 없음)는 null을 반환해 CreateButton이 아이콘
+        /// 없이 기존과 동일하게 동작하도록 한다 — 아이콘 부재가 인벤토리/상점 기능을 막으면 안 된다.
+        /// </summary>
+        private Sprite GetItemIcon(string itemName)
+        {
+            if (string.IsNullOrEmpty(itemName))
+            {
+                return null;
+            }
+
+            foreach (var art in itemIconArt)
+            {
+                if (art.itemName == itemName)
+                {
+                    return art.sprite;
+                }
+            }
+            return null;
         }
     }
 }

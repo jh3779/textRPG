@@ -1102,5 +1102,123 @@ namespace TextRPG.Tests.PlayMode
                 Application.logMessageReceived -= ConsumeKnownEditorNoiseIfMatched;
             }
         }
+
+        // ----------------------------------------------------------------
+        // 테스트 P: 전투 중 PlayerPortrait/EnemyPortrait에 DEC-137 가장자리 마스킹 셰이더/머티리얼이
+        // 실제로 붙어있는지(사각형 이미지가 그대로 얹혀있던 DEC-116 공백이 실제로 메워졌는지) 검증.
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator P_BattlePortraits_HaveEdgeMaskMaterialApplied()
+        {
+            bool hadExisting = false;
+            string backup = null;
+            try
+            {
+                backup = BackupSaveFileIfExists(out hadExisting);
+                DeleteSaveFileIfExists();
+
+                yield return LoadMainScene();
+                yield return SelectWarriorAndConfirm();
+
+                var exploreController = FindController<ExplorePanelController>();
+                yield return EnterGoblinBattle(exploreController);
+
+                var enemyPortraitImage = exploreController.transform.Find("EnemyPortrait").GetComponent<Image>();
+                var playerPortraitImage = exploreController.transform.Find("PlayerPortrait").GetComponent<Image>();
+
+                Assert.IsNotNull(enemyPortraitImage.material, "EnemyPortrait에 머티리얼이 할당되어 있어야 합니다(DEC-137).");
+                Assert.AreEqual("TextRPG/UI/PortraitEdgeMask", enemyPortraitImage.material.shader.name,
+                    "EnemyPortrait 머티리얼이 가장자리 마스킹 셰이더를 써야 합니다.");
+                var enemyMaskTex = enemyPortraitImage.material.GetTexture("_MaskTex");
+                Assert.IsNotNull(enemyMaskTex, "EnemyPortrait 머티리얼의 _MaskTex가 비어있으면 안 됩니다.");
+                Assert.AreEqual("mask_enemy_softedge", enemyMaskTex.name,
+                    $"EnemyPortrait은 mask_enemy_softedge를 써야 하는데 {enemyMaskTex.name}이 할당되어 있습니다.");
+
+                Assert.IsNotNull(playerPortraitImage.material, "PlayerPortrait에 머티리얼이 할당되어 있어야 합니다(DEC-137).");
+                Assert.AreEqual("TextRPG/UI/PortraitEdgeMask", playerPortraitImage.material.shader.name,
+                    "PlayerPortrait 머티리얼이 가장자리 마스킹 셰이더를 써야 합니다.");
+                var playerMaskTex = playerPortraitImage.material.GetTexture("_MaskTex");
+                Assert.IsNotNull(playerMaskTex, "PlayerPortrait 머티리얼의 _MaskTex가 비어있으면 안 됩니다.");
+                Assert.AreEqual("mask_character_softedge", playerMaskTex.name,
+                    $"PlayerPortrait은 mask_character_softedge를 써야 하는데 {playerMaskTex.name}이 할당되어 있습니다.");
+            }
+            finally
+            {
+                RestoreSaveFile(hadExisting, backup);
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 테스트 Q: 인벤토리(아이템 사용/장착)·상점(무기고 구매) 버튼에 아이템 아이콘이 실제로
+        // 표시되는지(DEC-137), 그리고 아이콘이 없는 일반 버튼(선택지 이동)은 여전히 기존과 동일하게
+        // 아이콘 없이 나오는지(회귀 방지) 검증.
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator Q_InventoryAndShopButtons_ShowItemIcons()
+        {
+            bool hadExisting = false;
+            string backup = null;
+            try
+            {
+                backup = BackupSaveFileIfExists(out hadExisting);
+                DeleteSaveFileIfExists();
+
+                yield return LoadMainScene();
+                yield return SelectWarriorAndConfirm();
+
+                var exploreController = FindController<ExplorePanelController>();
+                var buttonRow = exploreController.transform.Find("ButtonRow");
+
+                // 던전 입구: 시작 포션("회복 물약") 사용 버튼에 아이콘이 있어야 한다.
+                var usePotionButton = FindButtonByLabelPrefix(buttonRow, "아이템 사용: 회복 물약");
+                Assert.IsNotNull(usePotionButton, "'아이템 사용: 회복 물약' 버튼을 찾을 수 없습니다.");
+                var potionIcon = usePotionButton.transform.Find("Icon").GetComponent<Image>();
+                Assert.IsTrue(potionIcon.enabled, "회복 물약 사용 버튼의 아이콘이 활성화되어 있어야 합니다.");
+                Assert.IsNotNull(potionIcon.sprite, "회복 물약 사용 버튼의 아이콘 스프라이트가 null이면 안 됩니다.");
+                Assert.AreEqual("item_회복물약", potionIcon.sprite.name,
+                    $"회복 물약 아이콘은 item_회복물약이어야 하는데 {potionIcon.sprite.name}이 할당되어 있습니다.");
+
+                // 전사 시작 무기("장검") 장착 버튼("장착됨: 장검" — 이미 장착 상태로 시작)에도 아이콘이 있어야 한다.
+                var equippedWeaponButton = FindButtonByLabelPrefix(buttonRow, "장착됨: 장검");
+                Assert.IsNotNull(equippedWeaponButton, "'장착됨: 장검' 버튼을 찾을 수 없습니다.");
+                var weaponIcon = equippedWeaponButton.transform.Find("Icon").GetComponent<Image>();
+                Assert.IsTrue(weaponIcon.enabled, "장검 장착 버튼의 아이콘이 활성화되어 있어야 합니다.");
+                Assert.AreEqual("item_전사장검", weaponIcon.sprite.name);
+
+                // 아이콘이 없는 일반 선택지 버튼("1. 던전에 들어간다")은 여전히 아이콘이 비활성이어야 한다(회귀 방지).
+                var moveButton = FindButtonByLabelPrefix(buttonRow, "1.");
+                Assert.IsNotNull(moveButton);
+                var moveIcon = moveButton.transform.Find("Icon").GetComponent<Image>();
+                Assert.IsFalse(moveIcon.enabled, "아이템과 무관한 이동 버튼은 아이콘이 비활성 상태여야 합니다.");
+
+                // 던전 입구 -> 갈림길 -> 낡은 무기고(지역 2)로 이동해 구매 버튼 아이콘을 확인한다.
+                moveButton.onClick.Invoke();
+                yield return null;
+                Assert.AreEqual(1, FindBootstrap().Session.Map.GetCurrentLocationIndex(), "갈림길(지역 1)로 이동해야 합니다.");
+
+                var toArmoryButton = FindButtonByLabelPrefix(buttonRow, "1.");
+                Assert.IsNotNull(toArmoryButton, "갈림길의 '1. 왼쪽 빛을 따라간다' 버튼을 찾을 수 없습니다.");
+                toArmoryButton.onClick.Invoke();
+                yield return null;
+
+                Assert.AreEqual(2, FindBootstrap().Session.Map.GetCurrentLocationIndex(), "낡은 무기고(지역 2)로 이동해야 합니다.");
+
+                var buyGreatswordButton = FindButtonByLabelPrefix(buttonRow, "구매: 대검");
+                Assert.IsNotNull(buyGreatswordButton, "전사 전용 신규 무기(대검) 구매 버튼을 찾을 수 없습니다.");
+                var greatswordIcon = buyGreatswordButton.transform.Find("Icon").GetComponent<Image>();
+                Assert.IsTrue(greatswordIcon.enabled, "대검 구매 버튼의 아이콘이 활성화되어 있어야 합니다.");
+                Assert.AreEqual("item_전사대검", greatswordIcon.sprite.name);
+
+                var buyLeatherArmorButton = FindButtonByLabelPrefix(buttonRow, "구매: 가죽 갑옷");
+                Assert.IsNotNull(buyLeatherArmorButton, "가죽 갑옷 구매 버튼을 찾을 수 없습니다.");
+                var leatherArmorIcon = buyLeatherArmorButton.transform.Find("Icon").GetComponent<Image>();
+                Assert.IsTrue(leatherArmorIcon.enabled, "가죽 갑옷 구매 버튼의 아이콘이 활성화되어 있어야 합니다.");
+                Assert.AreEqual("item_가죽갑옷", leatherArmorIcon.sprite.name);
+            }
+            finally
+            {
+                RestoreSaveFile(hadExisting, backup);
+            }
+        }
     }
 }
