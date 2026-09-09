@@ -448,16 +448,14 @@ namespace TextRPG.Tests.PlayMode
         }
 
         // ----------------------------------------------------------------
-        // 테스트 G: 직업 카드 선택 시 잉크마크(InkMarkOverlay) activeSelf/fillAmount 실제 변화(DEC-127)
+        // 테스트 G: 직업 카드 선택 시 선택 핀(SelectionPin) activeSelf 실제 변화(DEC-140 —
+        // 사용자 명시적 요청으로 DEC-118/DEC-127 잉크마크 선택 효과를 이 화면에 한해 대체)
         // ----------------------------------------------------------------
         [UnityTest]
-        public IEnumerator G_ClassSelect_CardSelection_TogglesInkMarkOverlay()
+        public IEnumerator G_ClassSelect_CardSelection_TogglesSelectionPin()
         {
             bool hadExisting = false;
             string backup = null;
-            // 이 테스트는 WaitForSeconds로 실제 시간을 기다린다 — ConsumeKnownEditorNoiseIfMatched
-            // 참조(알려진 무관한 TMP 임포터 창 에러 로그만 정확히 소비, 그 외 진짜 에러는 그대로 실패).
-            Application.logMessageReceived += ConsumeKnownEditorNoiseIfMatched;
             try
             {
                 backup = BackupSaveFileIfExists(out hadExisting);
@@ -473,39 +471,30 @@ namespace TextRPG.Tests.PlayMode
 
                 var warriorCard = classSelectController.transform.Find("Card_warrior");
                 var rogueCard = classSelectController.transform.Find("Card_rogue");
-                var warriorInk = warriorCard.GetComponentInChildren<InkMarkOverlay>(true);
-                var rogueInk = rogueCard.GetComponentInChildren<InkMarkOverlay>(true);
-                Assert.IsNotNull(warriorInk, "전사 카드에 InkMarkOverlay가 연결되어 있어야 합니다.");
-                Assert.IsNotNull(rogueInk, "도적 카드에 InkMarkOverlay가 연결되어 있어야 합니다.");
+                var warriorPin = warriorCard.Find("SelectionPin");
+                var roguePin = rogueCard.Find("SelectionPin");
+                Assert.IsNotNull(warriorPin, "전사 카드에 SelectionPin이 연결되어 있어야 합니다.");
+                Assert.IsNotNull(roguePin, "도적 카드에 SelectionPin이 연결되어 있어야 합니다.");
 
-                Assert.IsFalse(warriorInk.gameObject.activeSelf, "선택 전에는 잉크마크가 숨겨져 있어야 합니다.");
-                Assert.IsFalse(rogueInk.gameObject.activeSelf);
+                Assert.IsFalse(warriorPin.gameObject.activeSelf, "선택 전에는 핀이 숨겨져 있어야 합니다.");
+                Assert.IsFalse(roguePin.gameObject.activeSelf);
 
                 warriorCard.GetComponent<Button>().onClick.Invoke();
                 yield return null;
 
-                Assert.IsTrue(warriorInk.gameObject.activeSelf, "전사 카드를 선택하면 잉크마크가 표시되어야 합니다(DEC-118/127).");
-                Assert.IsFalse(rogueInk.gameObject.activeSelf, "선택하지 않은 카드는 잉크마크가 표시되면 안 됩니다.");
+                Assert.IsTrue(warriorPin.gameObject.activeSelf, "전사 카드를 선택하면 상단에 핀이 표시되어야 합니다(DEC-140).");
+                Assert.IsFalse(roguePin.gameObject.activeSelf, "선택하지 않은 카드는 핀이 표시되면 안 됩니다.");
 
-                var warriorRing = warriorInk.GetComponent<Image>();
-                float fillEarly = warriorRing.fillAmount;
-                Assert.Less(fillEarly, 1f, "선택 직후에는 원이 아직 다 그려지지 않은 상태(fillAmount < 1)여야 합니다.");
-
-                yield return new WaitForSeconds(0.25f);
-                Assert.Greater(warriorRing.fillAmount, fillEarly,
-                    "시간이 지나면 잉크마크 fillAmount가 더 커져야 합니다(원이 그려지는 중, DEC-118/127).");
-
-                // 다른 카드로 선택을 바꾸면 이전 카드의 잉크마크는 사라지고 새 카드에 나타나야 함
+                // 다른 카드로 선택을 바꾸면 이전 카드의 핀은 사라지고 새 카드에 나타나야 함
                 rogueCard.GetComponent<Button>().onClick.Invoke();
                 yield return null;
 
-                Assert.IsFalse(warriorInk.gameObject.activeSelf, "다른 카드를 선택하면 이전 카드의 잉크마크는 사라져야 합니다.");
-                Assert.IsTrue(rogueInk.gameObject.activeSelf, "새로 선택한 카드에 잉크마크가 표시되어야 합니다.");
+                Assert.IsFalse(warriorPin.gameObject.activeSelf, "다른 카드를 선택하면 이전 카드의 핀은 사라져야 합니다.");
+                Assert.IsTrue(roguePin.gameObject.activeSelf, "새로 선택한 카드에 핀이 표시되어야 합니다.");
             }
             finally
             {
                 RestoreSaveFile(hadExisting, backup);
-                Application.logMessageReceived -= ConsumeKnownEditorNoiseIfMatched;
             }
         }
 

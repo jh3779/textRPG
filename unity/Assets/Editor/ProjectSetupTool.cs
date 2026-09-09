@@ -235,7 +235,7 @@ namespace TextRPG.EditorTools
                 var targetGraphic = cardBg;
                 selectBtn.targetGraphic = targetGraphic;
 
-                var inkMark = BuildInkMarkOverlay(cardRoot); // DEC-118/DEC-127: 선택 시 잉크마크 연출
+                var pin = BuildSelectionPin(cardRoot); // DEC-140: 선택 시 카드 상단에 나타나는 핀(잉크마크 대체)
 
                 cards[i] = new ClassSelectPanelController.ClassCard
                 {
@@ -246,7 +246,7 @@ namespace TextRPG.EditorTools
                     nameText = nameText,
                     statsText = statsText,
                     itemsText = itemsText,
-                    inkMarkOverlay = inkMark
+                    selectionPin = pin
                 };
             }
 
@@ -269,7 +269,7 @@ namespace TextRPG.EditorTools
                 element.FindPropertyRelative("nameText").objectReferenceValue = cards[i].nameText;
                 element.FindPropertyRelative("statsText").objectReferenceValue = cards[i].statsText;
                 element.FindPropertyRelative("itemsText").objectReferenceValue = cards[i].itemsText;
-                element.FindPropertyRelative("inkMarkOverlay").objectReferenceValue = cards[i].inkMarkOverlay;
+                element.FindPropertyRelative("selectionPin").objectReferenceValue = cards[i].selectionPin;
             }
             so.ApplyModifiedPropertiesWithoutUndo();
 
@@ -786,28 +786,25 @@ namespace TextRPG.EditorTools
         }
 
         /// <summary>
-        /// DEC-118/DEC-127: 잉크마크 선택 표식(InkMarkOverlay)을 cardRoot 위에 카드보다 살짝 크게
-        /// (CSS .inkmark의 inset:-7px 근사) 겹쳐 생성한다. 처음엔 비활성 상태로 시작하고, 선택 시
-        /// ClassSelectPanelController.UpdateSelectionVisual()이 Show()/Hide()를 호출한다.
+        /// DEC-140 신규: 직업 카드가 선택됐을 때 카드 상단 중앙(카드 바깥쪽 위, 카드를 가리지 않는
+        /// 위치)에 나타나는 핀 아이콘. 새 이미지를 만들지 않고 DEC-139에서 던전 보드 "현재 위치" 토큰으로
+        /// 쓴 `token_current_location.png`(금색 장식 오브젝트)를 그대로 재사용한다 — "선택됨/현재 위치"를
+        /// 금색 토큰으로 표시하는 의미가 이미 프로젝트 안에서 일관되게 쓰이고 있어 재사용이 자연스럽다.
+        /// 사용자 명시적 요청(DEC-118/DEC-127의 잉크마크 선택 효과를 이 화면에 한해 대체)에 따라, 화려한
+        /// 애니메이션 없이 단순 활성화 토글만 한다(과설계 금지) — ClassSelectPanelController.UpdateSelectionVisual()이
+        /// SetActive(true/false)만 호출한다.
         /// </summary>
-        private static InkMarkOverlay BuildInkMarkOverlay(RectTransform cardRoot)
+        private static GameObject BuildSelectionPin(RectTransform cardRoot)
         {
-            var overlayRT = CreateAnchored("InkMark", cardRoot, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(cardRoot.sizeDelta.x + 16f, cardRoot.sizeDelta.y + 16f), Vector2.zero);
-            var ring = overlayRT.gameObject.AddComponent<Image>();
-            ring.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
-            ring.color = UIColors.InkMark;
-            ring.type = Image.Type.Filled;
-            ring.fillMethod = Image.FillMethod.Radial360;
-            ring.fillClockwise = true;
-            ring.fillAmount = 0f;
-            ring.raycastTarget = false;
-            overlayRT.SetAsLastSibling(); // CSS z-index:5와 동일하게 카드 내용물 위에 그려지도록
-
-            var overlay = overlayRT.gameObject.AddComponent<InkMarkOverlay>();
-            BindSerialized(overlay, ("ring", ring));
-            overlayRT.gameObject.SetActive(false);
-            return overlay;
+            const float pinSize = 48f;
+            var pinRT = CreateAnchored("SelectionPin", cardRoot, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(pinSize, pinSize), new Vector2(0f, pinSize / 2f + 6f));
+            var pinImg = pinRT.gameObject.AddComponent<Image>();
+            pinImg.sprite = LoadSprite("token_current_location");
+            pinImg.preserveAspect = true;
+            pinImg.raycastTarget = false;
+            pinRT.gameObject.SetActive(false);
+            return pinRT.gameObject;
         }
 
         /// <summary>
