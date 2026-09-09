@@ -1313,5 +1313,97 @@ namespace TextRPG.Tests.PlayMode
                 Application.logMessageReceived -= ConsumeKnownEditorNoiseIfMatched;
             }
         }
+
+        // ----------------------------------------------------------------
+        // 테스트 T: 던전 보드(DEC-139, OQ-110 해결) — 게임 시작 시 토큰이 첫 번째 노드(던전 입구)
+        // 위에 있고 모든 미래 노드가 locked 상태인지, 지역을 실제로 이동했을 때(ChooseLocationAction을
+        // 거치는 실제 버튼 클릭) 토큰이 두 번째 노드(갈림길)로 옮겨가고 첫 번째 노드가 cleared로
+        // 바뀌며 그 사이 연결선(Route_0)만 완료 색으로 바뀌는지 검증.
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator T_DungeonBoard_TokenAndOverlaysReflectCurrentLocation()
+        {
+            bool hadExisting = false;
+            string backup = null;
+            try
+            {
+                backup = BackupSaveFileIfExists(out hadExisting);
+                DeleteSaveFileIfExists();
+
+                yield return LoadMainScene();
+                yield return SelectWarriorAndConfirm();
+
+                var bootstrap = FindBootstrap();
+                var exploreController = FindController<ExplorePanelController>();
+                var board = exploreController.transform.Find("DungeonBoard");
+                Assert.IsNotNull(board, "탐색 화면에 DungeonBoard가 배치되어 있어야 합니다(DEC-139).");
+
+                string[] nodeNames =
+                {
+                    "Node_0_node_entrance", "Node_1_node_fork", "Node_2_node_armory",
+                    "Node_3_node_corridor", "Node_4_node_boss",
+                };
+                var nodeTransforms = new Transform[nodeNames.Length];
+                for (int i = 0; i < nodeNames.Length; i++)
+                {
+                    nodeTransforms[i] = board.Find(nodeNames[i]);
+                    Assert.IsNotNull(nodeTransforms[i], $"보드 노드 '{nodeNames[i]}'를 찾을 수 없습니다.");
+                }
+
+                var token = board.Find("CurrentLocationToken").GetComponent<RectTransform>();
+                Assert.IsNotNull(token, "CurrentLocationToken을 찾을 수 없습니다.");
+
+                Assert.AreEqual(0, bootstrap.Session.Map.GetCurrentLocationIndex());
+                var node0RT = nodeTransforms[0].GetComponent<RectTransform>();
+                Assert.AreEqual(node0RT.anchoredPosition.x, token.anchoredPosition.x, 0.01f,
+                    "게임 시작 시 토큰은 첫 번째 노드(던전 입구) 위에 있어야 합니다.");
+
+                for (int i = 0; i < nodeTransforms.Length; i++)
+                {
+                    bool cleared = nodeTransforms[i].Find("ClearedOverlay").gameObject.activeSelf;
+                    bool locked = nodeTransforms[i].Find("LockedOverlay").gameObject.activeSelf;
+                    Assert.IsFalse(cleared, $"노드 {i}는 아직 지나온 지역이 아니므로 cleared 오버레이가 꺼져 있어야 합니다.");
+                    Assert.AreEqual(i > 0, locked,
+                        $"노드 {i}의 locked 상태가 기대와 다릅니다(현재 위치 0 기준).");
+                }
+
+                // 던전 입구(0) -> "1. 던전에 들어간다" 버튼을 실제로 클릭해 갈림길(1)로 이동한다.
+                var buttonRow = exploreController.transform.Find("ButtonRow");
+                var moveButton = FindButtonByLabelPrefix(buttonRow, "1.");
+                Assert.IsNotNull(moveButton, "던전 입구의 '1. 던전에 들어간다' 버튼을 찾을 수 없습니다.");
+                moveButton.onClick.Invoke();
+                yield return null;
+
+                Assert.AreEqual(1, bootstrap.Session.Map.GetCurrentLocationIndex());
+
+                var node1RT = nodeTransforms[1].GetComponent<RectTransform>();
+                Assert.AreEqual(node1RT.anchoredPosition.x, token.anchoredPosition.x, 0.01f,
+                    "이동 후 토큰은 두 번째 노드(갈림길) 위로 옮겨가야 합니다.");
+
+                Assert.IsTrue(nodeTransforms[0].Find("ClearedOverlay").gameObject.activeSelf,
+                    "이동 후 첫 번째 노드(던전 입구)는 cleared 상태로 바뀌어야 합니다.");
+                Assert.IsFalse(nodeTransforms[0].Find("LockedOverlay").gameObject.activeSelf);
+                Assert.IsFalse(nodeTransforms[1].Find("ClearedOverlay").gameObject.activeSelf,
+                    "현재 위치 노드(갈림길)는 cleared 오버레이가 켜지면 안 됩니다.");
+                Assert.IsFalse(nodeTransforms[1].Find("LockedOverlay").gameObject.activeSelf,
+                    "현재 위치 노드(갈림길)는 locked 오버레이도 꺼져 있어야 합니다.");
+                for (int i = 2; i < nodeTransforms.Length; i++)
+                {
+                    Assert.IsTrue(nodeTransforms[i].Find("LockedOverlay").gameObject.activeSelf,
+                        $"노드 {i}는 여전히 locked 상태여야 합니다.");
+                }
+
+                var route0 = board.Find("Route_0").GetComponent<Image>();
+                Assert.AreEqual((Color)UIColors.Primary, route0.color,
+                    "이미 지나온 구간(Route_0)은 완료 색(UIColors.Primary)으로 바뀌어야 합니다.");
+                var route1 = board.Find("Route_1").GetComponent<Image>();
+                Assert.AreEqual((Color)UIColors.OutlineVariant, route1.color,
+                    "아직 안 지나온 구간(Route_1)은 기본(OutlineVariant) 색 그대로여야 합니다.");
+            }
+            finally
+            {
+                RestoreSaveFile(hadExisting, backup);
+            }
+        }
     }
 }

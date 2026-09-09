@@ -104,6 +104,20 @@ namespace TextRPG.UI
         [SerializeField] private TMP_Text statusOverlayText;
         [SerializeField] private Button statusOverlayCloseButton;
 
+        /// <summary>
+        /// 신규(DEC-139, OQ-110 해결): 던전 보드(C-06) — 5개 고정 지역(Map.cs 그대로)을 가로로
+        /// 나열한 작은 상태 표시 패널. 인덱스는 항상 Map.cs의 순서(0=던전입구,1=갈림길,2=무기고,
+        /// 3=어두운통로,4=보스의방)와 정확히 일치한다. 클릭 이동 기능은 없다 — 순수 시각 안내용.
+        /// 씬에 보드가 연결 안 된 환경(null/빈 배열)에서도 안전하게 동작해야 한다(다른 선택적
+        /// 비주얼들과 동일한 방어 패턴).
+        /// </summary>
+        [Header("던전 보드 (DEC-139 — 상태 표시 전용, 클릭 이동 불가)")]
+        [SerializeField] private RectTransform[] boardNodeAnchors;
+        [SerializeField] private Image[] boardNodeClearedOverlays;
+        [SerializeField] private Image[] boardNodeLockedOverlays;
+        [SerializeField] private Image[] boardRouteConnectors;
+        [SerializeField] private RectTransform boardToken;
+
         private readonly List<GameObject> spawnedButtons = new List<GameObject>();
 
         private void Awake()
@@ -119,6 +133,11 @@ namespace TextRPG.UI
 
             // "이어하기"로 위치 3에 착지했는데 아직 고블린을 안 잡았다면 즉시 전투(원본과 동일 동작).
             session.ProcessLocationEntry();
+
+            // 신규(DEC-139): Refresh()는 지역이 바뀔 때마다(이동/전투 진입/이어하기 등) 항상
+            // 호출되는 유일한 진입점이므로, 여기서 한 번만 갱신하면 RenderLocation/RenderBattle
+            // 양쪽 모두를 커버한다(둘 다 이 지역 인덱스를 그대로 유지하는 화면이므로).
+            UpdateDungeonBoard(session.Map.GetCurrentLocationIndex());
 
             if (session.CurrentState == GameState.GAME_OVER || session.CurrentState == GameState.VICTORY)
             {
@@ -599,6 +618,57 @@ namespace TextRPG.UI
                     return "마나를 회복했다!";
                 default:
                     return "도망에 실패했다!";
+            }
+        }
+
+        /// <summary>
+        /// 신규(DEC-139, OQ-110 해결): 던전 보드의 토큰 위치와 각 노드의 cleared/locked 오버레이,
+        /// 연결선 색을 currentIndex(Map.GetCurrentLocationIndex())에 맞춰 갱신한다. 인덱스가 현재보다
+        /// 낮은 노드는 "지나온 지역"(clearedOverlay), 높은 노드는 "아직 못 간 지역"(lockedOverlay)으로
+        /// 표시하고, 현재 노드는 둘 다 끈 채 토큰만 그 위에 놓는다. 이 게임은 선형 구조라 실제로
+        /// 건너뛰거나 되돌아갈 수 없으므로 순수 시각 안내용이다(클릭 이동 기능 없음).
+        /// 씬에 보드가 연결 안 된 환경(빌드 스크립트를 거치지 않은 테스트용 씬 등)에서도 조용히
+        /// 건너뛰어야 한다 — 보드 갱신 실패가 탐색/전투 진행을 막으면 안 된다.
+        /// </summary>
+        private void UpdateDungeonBoard(int currentIndex)
+        {
+            if (boardNodeAnchors == null || boardNodeAnchors.Length == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < boardNodeAnchors.Length; i++)
+            {
+                if (boardNodeClearedOverlays != null && i < boardNodeClearedOverlays.Length && boardNodeClearedOverlays[i] != null)
+                {
+                    boardNodeClearedOverlays[i].gameObject.SetActive(i < currentIndex);
+                }
+
+                if (boardNodeLockedOverlays != null && i < boardNodeLockedOverlays.Length && boardNodeLockedOverlays[i] != null)
+                {
+                    boardNodeLockedOverlays[i].gameObject.SetActive(i > currentIndex);
+                }
+            }
+
+            if (boardRouteConnectors != null)
+            {
+                for (int i = 0; i < boardRouteConnectors.Length; i++)
+                {
+                    if (boardRouteConnectors[i] == null)
+                    {
+                        continue;
+                    }
+
+                    // 구간 i는 노드 i→i+1 사이 — 이미 노드 i+1까지 지나왔으면(currentIndex > i) "완료" 색.
+                    boardRouteConnectors[i].color = i < currentIndex ? UIColors.Primary : UIColors.OutlineVariant;
+                }
+            }
+
+            if (boardToken != null && currentIndex >= 0 && currentIndex < boardNodeAnchors.Length && boardNodeAnchors[currentIndex] != null)
+            {
+                var pos = boardToken.anchoredPosition;
+                pos.x = boardNodeAnchors[currentIndex].anchoredPosition.x;
+                boardToken.anchoredPosition = pos;
             }
         }
 

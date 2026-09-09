@@ -524,7 +524,126 @@ namespace TextRPG.EditorTools
 
             so.ApplyModifiedPropertiesWithoutUndo();
 
+            // 신규(DEC-139/OQ-110 해결): 던전 보드(C-06) — 5개 고정 지역을 가로로 나열한 작은
+            // 상태 표시 패널. 클릭 이동 기능은 없다(기존 선택지/버튼으로만 이동, 순수 시각 안내).
+            BuildDungeonBoard(root, controller);
+
             return controller;
+        }
+
+        /// <summary>
+        /// 신규(DEC-139): OQ-110 해결 — 콘솔 원작 5개 고정 지역(던전입구→갈림길→무기고→어두운통로→
+        /// 보스의방, Map.cs 그대로)을 가로로 나열한 작은 보드 패널을 탐색 화면 상단(StatusLine
+        /// 아래, fullbleed 배경은 그대로 유지)에 얹는다. 하드코딩된 S자형 경로선+원형 노드 7개짜리
+        /// board_dungeon_background.png(OQ-110에서 5개 지역과 안 맞는다고 확인된 파일)는 쓰지 않고,
+        /// 대신 기존 material_양피지 재질 배경 위에 지역별 개별 노드 아이콘 5장(node_entrance/fork/
+        /// armory/corridor/boss)을 순서대로 배치했다 — 지역이 늘거나 순서가 바뀌면 그림 하나를 다시
+        /// 그릴 필요 없이 이 5장만 교체/재배치하면 된다.
+        ///
+        /// "5개 고정 노드 + 토큰 하나"라는 지금 요구사항 전용 최소 구현이다(범용 보드/타일맵
+        /// 프레임워크 아님). 연결선은 art-assets/board_route_completed.png 대신 단순 색상 Image로
+        /// 대체했다(지시서가 허용한 "가장 간단한 방법") — 이미 지나온 구간은 UIColors.Primary(금색),
+        /// 아직 안 지나온 구간은 UIColors.OutlineVariant(무채색)로 칠한다. node_event.png(예비 지역
+        /// 슬롯)와 board_node_battle.png/board_node_normal.png는 5개 고정 지역 설계에 맞지 않아
+        /// 이번엔 쓰지 않는다(예비 자산으로 남겨둠 — docs/06_open_questions.md DEC-139 참조).
+        ///
+        /// 노드를 클릭해 이동하는 기능은 만들지 않는다 — 이 게임은 선형 구조라 실제 이동은 기존
+        /// 지역 선택지/버튼으로만 가능하고, 보드는 "지금 어디 있고 다음에 어디로 갈 수 있는지"를
+        /// 보여주는 상태 표시 전용이다.
+        /// </summary>
+        private static void BuildDungeonBoard(RectTransform explorePanelRoot, ExplorePanelController controller)
+        {
+            string[] nodeIconFiles = { "node_entrance", "node_fork", "node_armory", "node_corridor", "node_boss" };
+            float[] nodeX = { -290f, -145f, 0f, 145f, 290f };
+            const float nodeSize = 44f;
+            const float overlaySize = 52f;
+            const float tokenSize = 60f;
+
+            // StatusLine(화면 최상단, 세로 범위 약 [-31,-1])과 겹치지 않도록 그 아래(-140~-50)에
+            // 배치한다 — DEC-116 fullbleed 배경은 가리지 않고, 그 위에 얹는 작은 패널 하나일 뿐이다.
+            var board = CreateAnchored("DungeonBoard", explorePanelRoot, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(660, 90), new Vector2(0, -95));
+            var boardBg = board.gameObject.AddComponent<Image>();
+            boardBg.color = new Color32(0xE8, 0xDC, 0xC0, 0xE6);
+            boardBg.raycastTarget = false; // 클릭 이동 기능 없음 — 순수 상태 표시 전용
+            AddBackgroundSprite(board, "material_양피지", Color.white, 1f);
+
+            var routeConnectors = new Image[nodeIconFiles.Length - 1];
+            for (int i = 0; i < routeConnectors.Length; i++)
+            {
+                float midX = (nodeX[i] + nodeX[i + 1]) / 2f;
+                float width = Mathf.Abs(nodeX[i + 1] - nodeX[i]) - nodeSize;
+                var routeRT = CreateAnchored($"Route_{i}", board, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(width, 4f), new Vector2(midX, 0f));
+                var routeImg = routeRT.gameObject.AddComponent<Image>();
+                routeImg.color = UIColors.OutlineVariant;
+                routeImg.raycastTarget = false;
+                routeConnectors[i] = routeImg;
+            }
+
+            var nodeAnchors = new RectTransform[nodeIconFiles.Length];
+            var clearedOverlays = new Image[nodeIconFiles.Length];
+            var lockedOverlays = new Image[nodeIconFiles.Length];
+
+            for (int i = 0; i < nodeIconFiles.Length; i++)
+            {
+                var nodeRT = CreateAnchored($"Node_{i}_{nodeIconFiles[i]}", board, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(nodeSize, nodeSize), new Vector2(nodeX[i], 0f));
+                var nodeImg = nodeRT.gameObject.AddComponent<Image>();
+                nodeImg.sprite = LoadSprite(nodeIconFiles[i]);
+                nodeImg.preserveAspect = true;
+                nodeImg.raycastTarget = false;
+                nodeAnchors[i] = nodeRT;
+
+                var clearedRT = CreateAnchored("ClearedOverlay", nodeRT, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(overlaySize, overlaySize), Vector2.zero);
+                var clearedImg = clearedRT.gameObject.AddComponent<Image>();
+                clearedImg.sprite = LoadSprite("board_node_cleared");
+                clearedImg.preserveAspect = true;
+                clearedImg.raycastTarget = false;
+                clearedRT.gameObject.SetActive(false);
+                clearedOverlays[i] = clearedImg;
+
+                var lockedRT = CreateAnchored("LockedOverlay", nodeRT, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(overlaySize, overlaySize), Vector2.zero);
+                var lockedImg = lockedRT.gameObject.AddComponent<Image>();
+                lockedImg.sprite = LoadSprite("board_node_locked");
+                lockedImg.preserveAspect = true;
+                lockedImg.raycastTarget = false;
+                lockedRT.gameObject.SetActive(false);
+                lockedOverlays[i] = lockedImg;
+            }
+
+            // 현재 위치 토큰 — 모든 노드/오버레이보다 위에 그려지도록 마지막에 생성한다.
+            var tokenRT = CreateAnchored("CurrentLocationToken", board, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(tokenSize, tokenSize), new Vector2(nodeX[0], 0f));
+            var tokenImg = tokenRT.gameObject.AddComponent<Image>();
+            tokenImg.sprite = LoadSprite("token_current_location");
+            tokenImg.preserveAspect = true;
+            tokenImg.raycastTarget = false;
+            tokenRT.SetAsLastSibling();
+
+            var boardSO = new SerializedObject(controller);
+            SetObjectArray(boardSO, "boardNodeAnchors", nodeAnchors);
+            SetObjectArray(boardSO, "boardNodeClearedOverlays", clearedOverlays);
+            SetObjectArray(boardSO, "boardNodeLockedOverlays", lockedOverlays);
+            SetObjectArray(boardSO, "boardRouteConnectors", routeConnectors);
+            boardSO.FindProperty("boardToken").objectReferenceValue = tokenRT;
+            boardSO.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// 신규(DEC-139): enemyPortraitArt 등 기존 List&lt;Serializable&gt; 배열 채우기 패턴과 달리,
+        /// 던전 보드는 단순 Object[] 배열 필드(RectTransform[]/Image[])라 이 헬퍼로 공용 처리한다.
+        /// </summary>
+        private static void SetObjectArray(SerializedObject so, string propertyName, Object[] values)
+        {
+            var prop = so.FindProperty(propertyName);
+            prop.arraySize = values.Length;
+            for (int i = 0; i < values.Length; i++)
+            {
+                prop.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+            }
         }
 
         // ------------------------------------------------------------------
