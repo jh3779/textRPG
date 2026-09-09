@@ -11,14 +11,20 @@
  * 그대로 반영했다 — TMP textInfo.lineCount로 줄 단위 캐릭터 위치를 따라가려는 시도는 하지
  * 않는다(줄바꿈이 실제 폭·폰트에 따라 달라지면 어긋나는 함정, 웹 프리뷰와 동일한 이유).
  *
- * 펜촉 자체는 실제 깃펜 모양 스프라이트 대신(신규 이미지 에셋 추가 금지) 잉크브라운
- * (UIColors.QuillInk) 색의 작은 원형 Image(Unity 에디터 내장 Knob 스프라이트, 새 에셋 파일을
- * 만들지 않고 AssetDatabase.GetBuiltinExtraResource로 참조)로 "펜 끝"을 단순화해 표현한다.
+ * 신규(DEC-138): 펜촉을 잉크브라운으로 물들인 원형(Unity 내장 Knob) 대신 실제 깃펜 이미지
+ * 6프레임(art-assets/vfx_quill_idle.png, vfx_quill_writing_01~04.png, vfx_quill_writing_end.png,
+ * DEC-135 버전)으로 교체한다 — 진행률(progress 0~1)에 따라 penImage.sprite를 penFrames[0..5]
+ * 중 하나로 갈아끼우기만 한다(애니메이션 컨트롤러 등 무겁게 만들지 않음). 펜이 기준선을 따라
+ * 좌우로 이동하는 로직(위 penIcon.anchoredPosition 갱신) 자체는 DEC-123 그대로 유지한다 —
+ * 이번엔 그림(프레임)만 바꾼다. 알려진 한계(DEC-135/136): 6프레임 전부 촛불 후광 부위에 체커보드
+ * 알파 잔재가 약간 남아있다 — 이미지 자체는 건드리지 않고(DEC-136에서 리터치 시도 후 실루엣
+ * 손상 부작용으로 폐기됨) 있는 그대로 쓴다.
  */
 
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace TextRPG.UI
 {
@@ -27,9 +33,12 @@ namespace TextRPG.UI
         [SerializeField] private TMP_Text text;
         [SerializeField] private RectTransform penIcon; // null이어도 텍스트 드러남 자체는 동작해야 함
         [SerializeField] private CanvasGroup penCanvasGroup; // null이면 펜 알파 연출은 생략
+        [SerializeField] private Image penImage; // 신규(DEC-138): 진행률별 프레임 교체 대상
+        [SerializeField] private Sprite[] penFrames; // 신규(DEC-138): [idle, writing_01, writing_02, writing_03, writing_04, writing_end] 6장
         [SerializeField] private float duration = 1.6f;
 
         private Coroutine routine;
+        private int lastFrameIndex = -1;
 
         /// <summary>현재 진행률(0~1). PlayMode 테스트에서 시간 경과에 따라 증가하는지 확인하는 용도.</summary>
         public float Progress { get; private set; }
@@ -49,6 +58,7 @@ namespace TextRPG.UI
             text.text = content;
             text.maxVisibleCharacters = 0;
             Progress = 0f;
+            lastFrameIndex = -1;
 
             if (penIcon != null)
             {
@@ -60,6 +70,7 @@ namespace TextRPG.UI
             {
                 penCanvasGroup.alpha = 0f;
             }
+            ApplyPenFrame(0f);
 
             routine = StartCoroutine(RevealRoutine());
         }
@@ -92,6 +103,8 @@ namespace TextRPG.UI
                     penIcon.anchoredPosition = pos;
                 }
 
+                ApplyPenFrame(t);
+
                 // 원본 CSS qw-pen-move: 94%까지 opacity .85 유지 후 100%에서 0으로 페이드아웃.
                 if (penCanvasGroup != null && t > 0.94f)
                 {
@@ -103,11 +116,46 @@ namespace TextRPG.UI
 
             text.maxVisibleCharacters = totalChars;
             Progress = 1f;
+            ApplyPenFrame(1f);
             if (penCanvasGroup != null)
             {
                 penCanvasGroup.alpha = 0f;
             }
             routine = null;
+        }
+
+        /// <summary>
+        /// 신규(DEC-138): progress(0~1)를 6프레임(idle→writing_01~04→end) 구간으로 나눠
+        /// penImage.sprite를 교체한다. 예시(작업 지시 기준): 0=idle, 0.2=01, 0.4=02, 0.6=03,
+        /// 0.8=04, 1.0=end. 같은 구간이면 다시 대입하지 않아(lastFrameIndex 캐시) 매 프레임
+        /// 불필요한 재할당을 피한다.
+        /// </summary>
+        private void ApplyPenFrame(float progress)
+        {
+            if (penImage == null || penFrames == null || penFrames.Length < 6)
+            {
+                return;
+            }
+
+            int index;
+            if (progress >= 1f) index = 5;
+            else if (progress >= 0.8f) index = 4;
+            else if (progress >= 0.6f) index = 3;
+            else if (progress >= 0.4f) index = 2;
+            else if (progress >= 0.2f) index = 1;
+            else index = 0;
+
+            if (index == lastFrameIndex)
+            {
+                return;
+            }
+            lastFrameIndex = index;
+
+            var frame = penFrames[index];
+            if (frame != null)
+            {
+                penImage.sprite = frame;
+            }
         }
     }
 }

@@ -1220,5 +1220,98 @@ namespace TextRPG.Tests.PlayMode
                 RestoreSaveFile(hadExisting, backup);
             }
         }
+
+        // ----------------------------------------------------------------
+        // 테스트 R: 큰 양피지 패널(타이틀/직업 카드 3장/결과지) 네 모서리에 필리그리 장식
+        // Image가 실제로 배치돼 있는지(DEC-117/120 설계, DEC-138에서 실제 연결). 탐색/전투
+        // fullbleed 화면은 대상이 아니므로(DEC-116) 여기서 검증하지 않는다.
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator R_LargeParchmentPanels_HaveFiligreeCornersApplied()
+        {
+            yield return LoadMainScene();
+
+            var titleController = FindController<TitlePanelController>();
+            var classSelectController = FindController<ClassSelectPanelController>();
+            var resultController = FindController<ResultPanelController>();
+
+            string[] cornerNames =
+            {
+                "ui_filigree_top_left", "ui_filigree_top_right",
+                "ui_filigree_bottom_left", "ui_filigree_bottom_right",
+            };
+
+            AssertFiligreeCornersPresent(titleController.transform.Find("ParchmentCard"), "타이틀 패널 카드", cornerNames);
+            AssertFiligreeCornersPresent(resultController.transform.Find("ParchmentCard"), "결과 패널 카드", cornerNames);
+
+            int checkedCards = 0;
+            foreach (var id in new[] { "warrior", "rogue", "mage" })
+            {
+                var card = classSelectController.transform.Find($"Card_{id}");
+                Assert.IsNotNull(card, $"'{id}' 직업 카드를 찾을 수 없습니다.");
+                AssertFiligreeCornersPresent(card, $"'{id}' 직업 카드", cornerNames);
+                checkedCards++;
+            }
+            Assert.AreEqual(3, checkedCards, "직업 카드 3개(전사/도적/마법사) 전부 확인했어야 합니다.");
+        }
+
+        private static void AssertFiligreeCornersPresent(Transform panelRoot, string label, string[] cornerNames)
+        {
+            Assert.IsNotNull(panelRoot, $"{label}을(를) 찾을 수 없습니다.");
+            foreach (var name in cornerNames)
+            {
+                var cornerT = panelRoot.Find(name);
+                Assert.IsNotNull(cornerT, $"{label}에 필리그리 모서리 '{name}'가 없습니다.");
+                var img = cornerT.GetComponent<Image>();
+                Assert.IsNotNull(img, $"{label}의 '{name}'에 Image 컴포넌트가 없습니다.");
+                Assert.IsNotNull(img.sprite, $"{label}의 '{name}' 이미지 스프라이트가 null입니다.");
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 테스트 S: 결과 화면 깃펜(QuillRevealText) 펜 아이콘이 실제 깃펜 이미지(art-assets
+        // vfx_quill_*)를 쓰고, 진행률에 따라 다른 프레임 스프라이트로 바뀌는지(DEC-138) 검증.
+        // 이동 로직(테스트 H)과 별개로 이번엔 "그림이 실제로 바뀌는지"만 확인한다.
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator S_ResultPanel_QuillReveal_PenSpriteChangesAcrossProgress()
+        {
+            Application.logMessageReceived += ConsumeKnownEditorNoiseIfMatched;
+            try
+            {
+                yield return LoadMainScene();
+
+                var resultController = FindController<ResultPanelController>();
+                var quill = resultController.GetComponentInChildren<QuillRevealText>(true);
+                Assert.IsNotNull(quill, "ResultPanel의 서술 텍스트에 QuillRevealText가 연결되어 있어야 합니다.");
+
+                resultController.gameObject.SetActive(true);
+
+                var penTransform = quill.transform.Find("QuillPen");
+                Assert.IsNotNull(penTransform, "QuillPen 오브젝트를 찾을 수 없습니다.");
+                var penImage = penTransform.GetComponent<Image>();
+                Assert.IsNotNull(penImage, "펜 아이콘에 Image 컴포넌트가 있어야 합니다.");
+                Assert.IsNotNull(penImage.sprite,
+                    "펜 아이콘 스프라이트가 null이면 안 됩니다(DEC-138: 실제 깃펜 이미지 연결).");
+
+                quill.Play("깃펜 프레임 전환 테스트용 문장입니다.");
+                var spriteAtStart = penImage.sprite;
+                Assert.AreEqual("vfx_quill_idle", spriteAtStart.name,
+                    $"재생 시작 직후(progress<0.2) 펜 스프라이트는 vfx_quill_idle이어야 하는데 {spriteAtStart.name}입니다.");
+
+                yield return new WaitForSeconds(1.7f);
+                Assert.AreEqual(1f, quill.Progress, 0.001f, "충분한 시간이 지나면 진행률이 1(완료)이 되어야 합니다.");
+                var spriteAtEnd = penImage.sprite;
+
+                Assert.AreNotEqual(spriteAtStart, spriteAtEnd,
+                    "진행률 0 부근과 1.0(완료) 사이에 펜 스프라이트가 실제로 바뀌어야 합니다(DEC-138: idle→writing→end 프레임 전환).");
+                Assert.AreEqual("vfx_quill_writing_end", spriteAtEnd.name,
+                    $"완료 시점 펜 스프라이트는 vfx_quill_writing_end여야 하는데 {spriteAtEnd.name}입니다.");
+            }
+            finally
+            {
+                Application.logMessageReceived -= ConsumeKnownEditorNoiseIfMatched;
+            }
+        }
     }
 }

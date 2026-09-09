@@ -121,6 +121,7 @@ namespace TextRPG.EditorTools
             cardImg.color = new Color32(0xE8, 0xDC, 0xC0, 0xFF);
             AddBackgroundSprite(card, "material_양피지", Color.white, 1f);
             AddFoldLine(card); // DEC-121/DEC-127: 표지(큰 양피지 패널)에 중앙 접힘선
+            AddFiligreeCorners(card, 72f); // DEC-117/DEC-120/DEC-138: 표지 모서리 필리그리 장식
 
             CreateText("Title", card, "DUNGEON GATE", 44, new Color32(0x3B, 0x33, 0x20, 0xFF), TextAlignmentOptions.Center,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(460, 80), new Vector2(0, -60));
@@ -204,6 +205,7 @@ namespace TextRPG.EditorTools
                     new Vector2(cardWidth, 520), new Vector2(startX + i * (cardWidth + gap), -20));
                 var cardBg = cardRoot.gameObject.AddComponent<Image>();
                 cardBg.color = new Color32(0xDC, 0xCD, 0xA6, 0xFF);
+                AddFiligreeCorners(cardRoot, 56f); // DEC-117/DEC-120/DEC-138: 직업 카드 모서리 필리그리 장식
 
                 var portraitRT = CreateAnchored("Portrait", cardRoot, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                     new Vector2(220, 260), new Vector2(0, -20));
@@ -539,6 +541,7 @@ namespace TextRPG.EditorTools
             var cardImg = card.gameObject.AddComponent<Image>();
             cardImg.color = new Color32(0xE8, 0xDC, 0xC0, 0xFF);
             AddFoldLine(card); // DEC-121/DEC-127: 결과지(큰 양피지 패널)에 중앙 접힘선
+            AddFiligreeCorners(card, 56f); // DEC-117/DEC-120/DEC-138: 결과지 모서리 필리그리 장식
 
             var headline = CreateText("Headline", card, "GAME OVER", 30, new Color32(0x8B, 0x2E, 0x2E, 0xFF),
                 TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(420, 50), new Vector2(0, -30));
@@ -549,20 +552,45 @@ namespace TextRPG.EditorTools
             // DEC-121/DEC-127: 깃펜 필기 연출 — 서술 텍스트 하단 진행 기준선을 따라가는 펜 아이콘.
             // 특정 글자(caret) 위치가 아니라 Description 텍스트 박스 폭 전체를 트랙으로 사용한다
             // (unity-mapping.html M-02 2026-09-07 수정 지침 — 줄바꿈에 영향받지 않기 위함).
+            // 신규(DEC-138): 잉크브라운으로 물들인 원형 대신 실제 깃펜 6프레임(vfx_quill_*)을
+            // 사용한다. 원본 비율(약 0.88~0.90)이 원형과 달리 세로로 조금 긴 직사각형에 가까워
+            // preserveAspect를 켠다.
             var penIconRT = CreateAnchored("QuillPen", description.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f),
-                new Vector2(12, 12), new Vector2(0, -4));
+                new Vector2(18, 22), new Vector2(0, -6));
             var penImage = penIconRT.gameObject.AddComponent<Image>();
-            penImage.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
-            penImage.color = UIColors.QuillInk;
+            penImage.sprite = LoadSprite("vfx_quill_idle");
+            penImage.preserveAspect = true;
             penImage.raycastTarget = false;
             var penCanvasGroup = penIconRT.gameObject.AddComponent<CanvasGroup>();
             penCanvasGroup.alpha = 0f;
+
+            var penFrames = new[]
+            {
+                LoadSprite("vfx_quill_idle"),
+                LoadSprite("vfx_quill_writing_01"),
+                LoadSprite("vfx_quill_writing_02"),
+                LoadSprite("vfx_quill_writing_03"),
+                LoadSprite("vfx_quill_writing_04"),
+                LoadSprite("vfx_quill_writing_end"),
+            };
 
             var quillReveal = description.gameObject.AddComponent<QuillRevealText>();
             BindSerialized(quillReveal,
                 ("text", description),
                 ("penIcon", penIconRT),
-                ("penCanvasGroup", penCanvasGroup));
+                ("penCanvasGroup", penCanvasGroup),
+                ("penImage", penImage));
+
+            // penFrames는 Sprite[]라 BindSerialized(단일 Object 바인딩용)로는 못 넣는다 — 배열
+            // 프로퍼티는 itemIconArtProp(위 GameBootstrap 설정)과 동일한 패턴으로 직접 채운다.
+            var quillSO = new SerializedObject(quillReveal);
+            var penFramesProp = quillSO.FindProperty("penFrames");
+            penFramesProp.arraySize = penFrames.Length;
+            for (int i = 0; i < penFrames.Length; i++)
+            {
+                penFramesProp.GetArrayElementAtIndex(i).objectReferenceValue = penFrames[i];
+            }
+            quillSO.ApplyModifiedPropertiesWithoutUndo();
 
             var stats = CreateText("Stats", card, "", 14, new Color32(0x5B, 0x4E, 0x33, 0xFF),
                 TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(420, 30), new Vector2(0, -140));
@@ -699,6 +727,37 @@ namespace TextRPG.EditorTools
             rt.anchoredPosition = Vector2.zero;
             var img = go.AddComponent<Image>();
             img.color = UIColors.FoldLine;
+            img.raycastTarget = false;
+        }
+
+        /// <summary>
+        /// 신규(DEC-138): DEC-117/DEC-120에서 설계됐지만 벡터 곡선 필리그리를 Unity 기본 도형으로
+        /// 흉내내기 어려워(DEC-127 리뷰) 미구현이었던 모서리 장식을, 실제 art-assets/ui_filigree_*.png
+        /// 4장이 생긴 지금 연결한다. 큰 양피지 패널(표지/직업 카드/결과지)에만 적용하고, 탐색·전투
+        /// fullbleed 화면에는 적용하지 않는다(DEC-116). cornerSize(정사각형 한 변, px)는 카드 크기
+        /// 대비 과하지 않도록 호출부에서 지정한다 — 범용 데코레이터가 아니라 이 세 호출부 전용.
+        /// </summary>
+        private static void AddFiligreeCorners(RectTransform parent, float cornerSize)
+        {
+            AddFiligreeCorner(parent, "ui_filigree_top_left", new Vector2(0f, 1f), cornerSize);
+            AddFiligreeCorner(parent, "ui_filigree_top_right", new Vector2(1f, 1f), cornerSize);
+            AddFiligreeCorner(parent, "ui_filigree_bottom_left", new Vector2(0f, 0f), cornerSize);
+            AddFiligreeCorner(parent, "ui_filigree_bottom_right", new Vector2(1f, 0f), cornerSize);
+        }
+
+        private static void AddFiligreeCorner(RectTransform parent, string spriteName, Vector2 corner, float size)
+        {
+            var sprite = LoadSprite(spriteName);
+            if (sprite == null)
+            {
+                return;
+            }
+
+            var rt = CreateAnchored(spriteName, parent, corner, corner, new Vector2(size, size), Vector2.zero);
+            rt.pivot = corner; // 이미지가 모서리에서 카드 안쪽으로만 펼쳐지도록(카드 전체를 덮지 않음)
+            var img = rt.gameObject.AddComponent<Image>();
+            img.sprite = sprite;
+            img.preserveAspect = true;
             img.raycastTarget = false;
         }
 
