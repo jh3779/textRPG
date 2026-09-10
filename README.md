@@ -137,6 +137,8 @@ pre-commit install
 
 `.pre-commit-config.yaml` 전체 훅 목록과 제외 규칙은 저장소 루트의 해당 파일을 참고하세요.
 
+**주의(git worktree 사용 시)**: `.git/hooks/`는 모든 worktree가 공유합니다. `.pre-commit-config.yaml`이 아직 없는 브랜치를 체크아웃한 worktree(또는 메인 체크아웃)에서 `pre-commit install`을 실행하면, 그 브랜치에서의 커밋이 "No .pre-commit-config.yaml file was found" 오류로 전부 막힙니다 — 이 설정이 병합된 브랜치에서만 `pre-commit install`을 실행하세요. 잘못 걸렸다면 `pre-commit uninstall`(또는 `rm .git/hooks/pre-commit`)로 즉시 해제할 수 있습니다.
+
 ## 학습 포인트
 
 * 조건문과 반복문을 이용한 선택지 처리
