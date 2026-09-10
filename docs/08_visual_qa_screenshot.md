@@ -84,7 +84,7 @@ unity pipeline install --project-path unity
    ```bash
    unity command editor_focus
    unity command capture_game_view --source screen --width 1280 --height 800 \
-     --save_path unity/Assets/_qa_captures/scr002_class_select.png
+     --save_path Assets/_qa_captures/scr002_class_select.png
    ```
 
 이제 씬에 `QACaptureCamera`가 항상 존재하므로, 임시 카메라를 추가하지 않고도
