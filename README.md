@@ -1,5 +1,7 @@
 # Console Text RPG (C++)
 
+![CI](https://github.com/jh3779/textRPG/actions/workflows/ci.yml/badge.svg)
+
 간단한 텍스트 기반 콘솔 RPG입니다. 플레이어는 숫자 선택지를 통해 던전을 탐험하고, 전투와 이벤트를 거쳐 엔딩에 도달합니다.
 
 ## 주요 기능
@@ -119,6 +121,8 @@ textRPG/
 ```
 
 ## 개발 환경 설정
+
+GitHub Actions CI(`.github/workflows/ci.yml`)는 C++ 콘솔 코어 CMake 빌드와 `pre-commit` 훅 실행만 확인하며, Unity는 라이선스 시크릿 미보유로 CI에서 제외되어 로컬 배치모드(`RegressionSmokeTest`/PlayMode)로 검증합니다.
 
 이 저장소는 [pre-commit](https://pre-commit.com)으로 커밋 전 검증 훅을 강제합니다. 클론 후 한 번만 아래를 실행하면 활성화됩니다.
 
