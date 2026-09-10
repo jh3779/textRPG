@@ -66,6 +66,10 @@ public:
     // 💡 진행 상황 업데이트
     void updateProgress(int amount = 1);
 
+    // 💡 저장된 상태로 복원 (세이브/로드용) — 제목·설명·보상 등 고정 스펙은 그대로 두고
+    // 진행 상태(status)와 진행도(currentCount)만 덮어쓴다.
+    void loadState(QuestStatus savedStatus, int savedCurrentCount);
+
     // 💡 진행도 표시 (예: 2/5)
     void displayProgress() const;
 

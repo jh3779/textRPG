@@ -62,6 +62,11 @@ void Quest::updateProgress(int amount) {
     }
 }
 
+void Quest::loadState(QuestStatus savedStatus, int savedCurrentCount) {
+    status = savedStatus;
+    currentCount = std::clamp(savedCurrentCount, 0, targetCount);
+}
+
 void Quest::displayProgress() const {
     std::cout << currentCount << "/" << targetCount;
 }

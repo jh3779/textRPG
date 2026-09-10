@@ -18,10 +18,19 @@ std::string Map::getCurrentLocationName() const {
     return locations[currentLocationIndex].name;
 }
 
-void Map::displayCurrentLocation() const {
+void Map::displayCurrentLocation(AiNarrator* narrator) const {
     const Location& location = locations[currentLocationIndex];
+    std::string description = location.description;
+
+    if (narrator != nullptr && narrator->isEnabled()) {
+        description = narrator->narrate(
+            "location",
+            location.name + ": " + location.description,
+            location.description);
+    }
+
     std::cout << "\n[" << location.name << "]\n"
-              << location.description << "\n";
+              << description << "\n";
 }
 
 void Map::moveToLocation(int locationIndex) {

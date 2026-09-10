@@ -1,0 +1,440 @@
+/* ============================================================
+   textRPG (Unity TRPG) Design System Docs — Global Tokens & Shared
+   Base: Material 3 · ColorScheme "Gilded Dungeon"
+   출처: docs/07_visual_style.md (다크 판타지 UI, 2026-09-04 확정)
+   ============================================================ */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+@import url("https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0");
+@import url("https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=swap");
+
+/* ---------- Light — "Gilded Dungeon" (문서 열람용. 실제 게임은 항상 다크 톤 — design-system.html §1 참조) ---------- */
+:root{
+  --ds-primary:#8B6914; --ds-on-primary:#FFFFFF;
+  --ds-primary-container:#F5E6C8; --ds-on-primary-container:#3D2E00;
+  --ds-secondary:#6B5F7A; --ds-on-secondary:#FFFFFF;
+  --ds-secondary-container:#E8DFF0; --ds-on-secondary-container:#241934;
+  --ds-tertiary:#8B2E2E; --ds-on-tertiary:#FFFFFF;   /* HP/위험 전용 — 이 의미에만 사용 */
+  --ds-tertiary-container:#FFD9D9; --ds-on-tertiary-container:#410002;
+  --ds-error:#BA1A1A; --ds-on-error:#FFFFFF;
+  --ds-error-container:#FFDAD6; --ds-on-error-container:#410002;
+  --ds-surface:#FAF6EE; --ds-on-surface:#2B2216;
+  --ds-surface-variant:#EDE2CB; --ds-on-surface-variant:#4F4633;
+  --ds-outline:#8A7F68; --ds-outline-variant:#D8CDB0;
+  --ds-surface-container-lowest:#FFFFFF; --ds-surface-container-low:#F7F1E4;
+  --ds-surface-container:#F1E9D6; --ds-surface-container-high:#EAE0C8;
+  --ds-surface-container-highest:#E3D8BC;
+  --ds-inverse-surface:#362B1D; --ds-inverse-on-surface:#F7EEDD;
+  --ds-inverse-primary:#D4AF37; --ds-scrim:#000000; --ds-shadow:#000000;
+
+  /* 도메인 상태 색 — 퀘스트/전투 진행 상태에 매핑 (05_state_machine.md STATE-102·103) */
+  --ds-st-idle-bg:#E8DFF0;   --ds-st-idle-fg:#241934;   /* 시작 전 */
+  --ds-st-busy-bg:#F5E6C8;   --ds-st-busy-fg:#3D2E00;   /* 진행 중 / 전투 중 */
+  --ds-st-done-bg:#8B6914;   --ds-st-done-fg:#FFFFFF;   /* 완료 / 승리 */
+  --ds-st-fail-bg:#FFDAD6;   --ds-st-fail-fg:#410002;   /* 실패 / 패배 */
+
+  --ds-font-plain:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  --ds-font-mono:"Roboto Mono",ui-monospace,Menlo,monospace;
+  --ds-font-display:"Cinzel","Pretendard Variable",serif; /* 게임 내 타이틀/화면명 전용 (07_visual_style.md) */
+
+  --ds-space-1:4px; --ds-space-2:8px; --ds-space-3:12px; --ds-space-4:16px;
+  --ds-space-5:20px; --ds-space-6:24px; --ds-space-7:32px; --ds-space-8:40px;
+  --ds-radius-xs:4px; --ds-radius-sm:8px; --ds-radius-md:12px;
+  --ds-radius-lg:16px; --ds-radius-xl:28px; --ds-radius-full:999px;
+  --ds-elev-1:0 1px 2px rgba(0,0,0,.30),0 1px 3px 1px rgba(0,0,0,.15);
+  --ds-elev-2:0 1px 2px rgba(0,0,0,.30),0 2px 6px 2px rgba(0,0,0,.15);
+  --ds-elev-3:0 1px 3px rgba(0,0,0,.30),0 4px 8px 3px rgba(0,0,0,.15);
+}
+/* ---------- Dark — "Gilded Dungeon" (실제 게임 톤과 동일, 07_visual_style.md 원본) ---------- */
+[data-ds-theme="dark"]{
+  --ds-primary:#D4AF37; --ds-on-primary:#3D2E00;
+  --ds-primary-container:#5C4712; --ds-on-primary-container:#F5E6C8;
+  --ds-secondary:#B7A8C9; --ds-on-secondary:#382C48;
+  --ds-secondary-container:#4F4363; --ds-on-secondary-container:#E8DFF0;
+  --ds-tertiary:#FF8A80; --ds-on-tertiary:#5C0E0E;
+  --ds-tertiary-container:#7A1F1F; --ds-on-tertiary-container:#FFD9D9;
+  --ds-error:#FFB4AB; --ds-on-error:#690005;
+  --ds-error-container:#93000A; --ds-on-error-container:#FFDAD6;
+  --ds-surface:#0F0D1A; --ds-on-surface:#E8E1F0;
+  --ds-surface-variant:#332B44; --ds-on-surface-variant:#C7BEDA;
+  --ds-outline:#8F88A8; --ds-outline-variant:#4A4058;
+  --ds-surface-container-lowest:#08060E; --ds-surface-container-low:#151220;
+  --ds-surface-container:#1C1826; --ds-surface-container-high:#241F30;
+  --ds-surface-container-highest:#2D2740;
+  --ds-inverse-surface:#E8E1F0; --ds-inverse-on-surface:#0F0D1A;
+  --ds-inverse-primary:#8B6914;
+
+  --ds-st-idle-bg:#4F4363;   --ds-st-idle-fg:#E8DFF0;
+  --ds-st-busy-bg:#5C4712;   --ds-st-busy-fg:#F5E6C8;
+  --ds-st-done-bg:#D4AF37;   --ds-st-done-fg:#3D2E00;
+  --ds-st-fail-bg:#7A1F1F;   --ds-st-fail-fg:#FFD9D9;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--ds-surface-container-high);font-family:var(--ds-font-plain);color:var(--ds-on-surface);-webkit-font-smoothing:antialiased}
+a{color:var(--ds-primary)}
+code{font-family:var(--ds-font-mono);font-size:.9em;background:rgba(0,0,0,.05);padding:1px 5px;border-radius:4px}
+[data-ds-theme="dark"] code{background:rgba(255,255,255,.08)}
+h2{margin:0}
+@keyframes dsspin{to{transform:rotate(360deg)}}
+
+.wrap{max-width:1180px;margin:0 auto;padding:28px 40px 72px;display:flex;flex-direction:column;gap:22px}
+@media (max-width:640px){.wrap{padding:18px 16px 56px}}
+
+.topnav{position:sticky;top:0;z-index:10;background:var(--ds-surface-container-high);border-bottom:1px solid var(--ds-outline-variant);padding:10px 40px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+@media (max-width:640px){.topnav{padding:10px 16px}}
+.topnav .brand{font-size:14px;font-weight:700;margin-right:6px}
+.topnav a,.topnav span.cur{text-decoration:none;font-size:12.5px;font-weight:600;border-radius:8px;padding:6px 11px}
+.topnav a{background:var(--ds-surface);border:1px solid var(--ds-outline-variant);color:var(--ds-on-surface)}
+.topnav a:hover{background:var(--ds-surface-container)}
+.topnav span.cur{background:var(--ds-inverse-surface);color:var(--ds-inverse-on-surface)}
+.topnav .spacer{flex:1}
+.topnav button{background:var(--ds-surface);border:1px solid var(--ds-outline-variant);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--ds-on-surface);cursor:pointer;font-family:inherit}
+
+.toc{display:flex;gap:6px;flex-wrap:wrap;font-size:12px}
+.toc a{text-decoration:none;background:var(--ds-surface);border:1px solid var(--ds-outline-variant);border-radius:999px;padding:4px 11px;color:var(--ds-on-surface-variant)}
+.toc a:hover{color:var(--ds-primary);border-color:var(--ds-primary)}
+
+.pagehead{display:flex;flex-direction:column;gap:6px}
+.pagehead .t{font-size:24px;font-weight:700}
+.pagehead .s{font-size:12.5px;color:var(--ds-on-surface-variant)}
+
+.card{background:var(--ds-surface);border:1px solid var(--ds-outline-variant);border-radius:12px}
+.pad{padding:18px}
+.sec{display:flex;flex-direction:column;gap:12px;scroll-margin-top:64px}
+.sec-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.sec-num{font-family:var(--ds-font-mono);font-size:11px;font-weight:700;background:var(--ds-inverse-surface);color:var(--ds-inverse-on-surface);border-radius:5px;padding:3px 8px}
+.sec-t{font-size:16px;font-weight:700}
+.tag{font-family:var(--ds-font-mono);font-size:10.5px;color:var(--ds-outline)}
+.muted{color:var(--ds-on-surface-variant)}
+.grid{display:grid;gap:12px}
+.note{font-size:12px;line-height:1.65;color:var(--ds-on-surface-variant)}
+
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid var(--ds-outline-variant);padding:7px 10px;text-align:left;font-size:12px;vertical-align:top;line-height:1.5}
+th{background:var(--ds-surface-container-low);font-weight:700}
+.mono{font-family:var(--ds-font-mono)}
+.tblwrap{overflow-x:auto}
+
+.msym{font-family:'Material Symbols Outlined';font-weight:400;font-style:normal;line-height:1;display:inline-block;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;vertical-align:middle}
+.msym.f{font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 24}
+
+/* 버튼 — 2026-09-04: 단조로운 평면 필/아웃라인 대신 금속 각인 느낌의 베벨·레터스페이싱 추가 */
+.btn{border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--ds-font-display);font-size:13px;font-weight:700;letter-spacing:.04em;height:40px;padding:0 26px;position:relative}
+.btn-fill{background:linear-gradient(180deg,#E8C55A 0%,var(--ds-primary) 45%,#9c7a1e 100%);color:#241a00;box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -2px 3px rgba(0,0,0,.35),0 2px 5px rgba(0,0,0,.4);text-shadow:0 1px 0 rgba(255,255,255,.25)}
+.btn-out{border:1.5px solid var(--ds-outline);color:var(--ds-primary);background:linear-gradient(180deg,rgba(255,255,255,.04),transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.btn-out::before,.btn-out::after,.btn-fill::before,.btn-fill::after{content:"◆";position:absolute;font-size:6px;top:50%;transform:translateY(-50%);opacity:.6}
+.btn-out::before,.btn-fill::before{left:9px}
+.btn-out::after,.btn-fill::after{right:9px}
+.btn-fill::before,.btn-fill::after{color:#4a3a08}
+.btn-text{color:var(--ds-primary);padding:0 12px;font-family:var(--ds-font-display);letter-spacing:.03em}
+.btn-err{border:1.5px solid var(--ds-error);color:var(--ds-error)}
+.spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:dsspin .9s linear infinite}
+
+.badge{border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+
+.frame{display:flex;flex-direction:column;gap:9px}
+/* 폰 목업 (컴포넌트 프리뷰용으로 남겨둠) */
+.ph{width:250px;height:500px;border:2px solid var(--ds-on-surface);border-radius:20px;background:var(--ds-surface-container-lowest);display:flex;flex-direction:column;overflow:hidden;flex:none}
+.appbar{display:flex;align-items:center;gap:6px;padding:12px 14px;border-bottom:1px solid var(--ds-outline-variant)}
+.hand{font-family:'Nanum Pen Script',cursive;font-size:15px;line-height:1.3;color:var(--ds-on-surface-variant);max-width:250px}
+
+/* 게임 창 목업 (와이어프레임 전용) — 데스크톱 스탠드얼론(16:10 landscape), REQ-NF-101 · DEC-105 */
+.gw{width:480px;height:300px;border:3px solid var(--ds-on-surface);border-radius:10px;background:var(--ds-surface-container-lowest);display:flex;flex-direction:column;overflow:hidden;flex:none;position:relative}
+.gw::before,.gw::after{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--ds-primary);opacity:.7}
+.gw::before{top:6px;left:6px;border-right:none;border-bottom:none}
+.gw::after{bottom:6px;right:6px;border-left:none;border-top:none}
+.gw .titlebar{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--ds-outline-variant);background:var(--ds-surface-container-low)}
+.gw .titlebar b{font-family:var(--ds-font-display);font-size:13px;font-weight:700;letter-spacing:.02em}
+.gw .body{flex:1;padding:14px;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.gw .statusbar{display:flex;align-items:center;gap:12px;padding:6px 14px;border-top:1px solid var(--ds-outline-variant);background:var(--ds-surface-container-low);font-family:var(--ds-font-mono);font-size:10px}
+.hand-lg{font-family:'Nanum Pen Script',cursive;font-size:16px;line-height:1.35;color:var(--ds-on-surface-variant);max-width:480px}
+
+/* 초상화 프레임 (07_visual_style.md — 항상 액자형 테두리 안에) */
+.portrait{width:56px;height:56px;border-radius:6px;border:2px solid var(--ds-primary);background:var(--ds-surface-container);display:flex;align-items:center;justify-content:center;flex:none;position:relative}
+.portrait::after{content:"";position:absolute;inset:3px;border:1px solid var(--ds-outline-variant);border-radius:3px}
+.portrait.lg{width:96px;height:96px;border-width:3px}
+.portrait .msym{font-size:26px;color:var(--ds-outline)}
+.portrait.lg .msym{font-size:44px}
+
+/* HP/MP 바 — 금속 프레임 안에 채우는 형태 */
+.statbar{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+.statbar .lbl{display:flex;justify-content:space-between;font-size:10px;font-family:var(--ds-font-mono);color:var(--ds-on-surface-variant)}
+.statbar .track{height:10px;border:1px solid var(--ds-outline);border-radius:5px;background:var(--ds-surface-container);overflow:hidden;position:relative}
+.statbar .fill{height:100%;border-radius:4px}
+.statbar .fill.hp{background:var(--ds-tertiary)}
+.statbar .fill.xp{background:var(--ds-primary)}
+
+/* ============================================================
+   보드게임(태블탑) 레이아웃 확장 — 07_visual_style.md 2026-09-04 개정
+   나무 테이블 / 양피지 카드 / 던전 보드 타일 / 캐릭터 시트
+   ============================================================ */
+
+/* 나무 테이블 배경 — 게임 창(.gw) 안쪽 바탕으로 사용
+   2026-09-04: art-assets/material_나무.png(실제 생성 텍스처) 연결, 로드 실패 시 그라디언트로 폴백 */
+.wood{
+  background:
+    linear-gradient(rgba(10,7,3,.35), rgba(10,7,3,.35)),
+    url(../../art-assets/material_나무.png) center/cover,
+    repeating-linear-gradient(180deg, rgba(0,0,0,.10) 0 2px, transparent 2px 26px),
+    linear-gradient(180deg, #241708, #150d04);
+}
+[data-ds-theme="dark"] .wood,
+.wood{ color:#E8DFC8 }
+
+/* 양피지 카드 — 종이 재질, 항상 크림톤(테마 불문 — "테이블 위 물리적 종이")
+   2026-09-04: art-assets/material_양피지.png 연결, 로드 실패 시 그라디언트로 폴백 */
+.parchment{
+  background:
+    /* 2026-09-07(DEC-120): 네 모서리를 개별적으로 그을린 듯 어둡게 태우는 레이어 —
+       중심에서 은은히 어두워지던 기존 비네트 위에 덧씌워 "모서리가 검게 탄" 느낌을 강화 */
+    radial-gradient(58% 58% at 0% 0%, rgba(18,11,4,.62) 0%, transparent 62%),
+    radial-gradient(58% 58% at 100% 0%, rgba(18,11,4,.62) 0%, transparent 62%),
+    radial-gradient(58% 58% at 0% 100%, rgba(18,11,4,.62) 0%, transparent 62%),
+    radial-gradient(58% 58% at 100% 100%, rgba(18,11,4,.62) 0%, transparent 62%),
+    radial-gradient(140% 130% at 50% 45%, transparent 42%, rgba(59,45,20,.26) 75%, rgba(35,24,9,.48) 100%),
+    url(../../art-assets/material_양피지.png) center/cover,
+    radial-gradient(120% 140% at 30% 0%, #F3EAD2 0%, #E8DCC0 55%, #DCCDA6 100%);
+  border:1px solid #A8925E;
+  border-radius:4px 9px 5px 8px/8px 4px 9px 5px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.3), inset 0 0 18px rgba(80,60,25,.28), 0 3px 8px rgba(0,0,0,.4);
+  position:relative;
+  color:#3B3320;
+}
+.parchment::before{
+  content:"";position:absolute;inset:3px;border:1px solid rgba(120,95,50,.35);border-radius:3px 7px 4px 6px/6px 3px 7px 4px;pointer-events:none
+}
+
+/* 모서리 필리그리(덩굴무늬) 장식 — 2026-09-07 개정(DEC-120)
+   기존 유니코드 ❧ 한 글자 대신, 인라인 SVG(소용돌이 덩굴 곡선 + 끝부분 잎/버드 디테일)를
+   data URI로 background-image에 넣어 재사용한다. 색은 기존 잉크브라운(#8A6E3A) 유지.
+   --orn-filigree는 좌상단용, --orn-filigree-br은 같은 도안을 뷰박스 중심 기준으로
+   좌표 자체를 180도 미러링(x,y → 32-x,32-y)해 미리 그려둔 우하단용 — CSS transform이
+   아니라 좌표를 직접 뒤집어 둔 이유는 아래 참조.
+   .parchment-orn::after 하나에 두 배경 레이어(좌상단/우하단)를 동시에 올려서 자동 배치한다.
+   ::before는 절대 건드리지 않는다 — .parchment::before(이중 테두리, inset:3px)와 같은
+   가상요소를 두 규칙이 동시에 절대배치하면 top/left+width/height와 inset의 right/bottom이
+   과대제약(over-constrained)되어 테두리가 좌상단 작은 상자로 깨지는 회귀가 있었음
+   (review-verify-agent Major 확인, 2026-09-07). 같은 이유로 이중 테두리를 outline으로
+   옮기는 대안도 시도했으나, wireframes.html:230(승리 카드)처럼 인라인 style="outline:..."
+   로 선택 강조 테두리를 이미 쓰는 곳과 outline 속성이 통째로 충돌해 그 카드만 이중
+   테두리가 사라지는 2차 회귀가 있어 최종적으로 폐기 — background-image 레이어 방식은
+   border/outline 어느 쪽과도 겹치지 않아 이런 충돌 자체가 없다.
+   실사용처 5곳: components.html:40, wireframes.html:39·199·217·230(이 중 230은 인라인
+   outline도 함께 쓰지만 이번 방식은 outline과 무관해 문제 없음).
+   .orn-tl/.orn-br는 마크업에 직접 붙여 단독으로 쓸 수 있게 만든 예비 유틸리티 클래스로,
+   지금은 위 5곳 모두 .parchment-orn(배경 레이어 자동 배치)만 쓰고 있어 실사용처는 없다 —
+   앞으로 .parchment가 아닌 요소에 모서리 장식만 붙이고 싶을 때를 위해 남겨둠. */
+:root{
+  --orn-filigree: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%238A6E3A' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3,3 C3,11 3,18 8,23 C11.5,26.5 16.5,26 17.5,22 C18.3,18.7 15.5,16.8 13,18.2 C11.3,19.1 11.6,21.3 13.5,21.6'/%3E%3Cpath d='M3,3 C11,3 18,3 23,8 C26.5,11.5 26,16.5 22,17.5 C18.7,18.3 16.8,15.5 18.2,13 C19.1,11.3 21.3,11.6 21.6,13.5'/%3E%3Cpath d='M3,3 C6,3.4 7.6,5 7.8,7.6' stroke-width='0.9'/%3E%3Cpath d='M3,3 C3.4,6 5,7.6 7.6,7.8' stroke-width='0.9'/%3E%3C/g%3E%3Cg fill='%238A6E3A' stroke='none'%3E%3Ccircle cx='3' cy='3' r='1.4'/%3E%3Ccircle cx='13.5' cy='21.6' r='1'/%3E%3Ccircle cx='21.6' cy='13.5' r='1'/%3E%3C/g%3E%3C/svg%3E");
+  --orn-filigree-br: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%238A6E3A' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M29,29 C29,21 29,14 24,9 C20.5,5.5 15.5,6 14.5,10 C13.7,13.3 16.5,15.2 19,13.8 C20.7,12.9 20.4,10.7 18.5,10.4'/%3E%3Cpath d='M29,29 C21,29 14,29 9,24 C5.5,20.5 6,15.5 10,14.5 C13.3,13.7 15.2,16.5 13.8,19 C12.9,20.7 10.7,20.4 10.4,18.5'/%3E%3Cpath d='M29,29 C26,28.6 24.4,27 24.2,24.4' stroke-width='0.9'/%3E%3Cpath d='M29,29 C28.6,26 27,24.4 24.4,24.2' stroke-width='0.9'/%3E%3C/g%3E%3Cg fill='%238A6E3A' stroke='none'%3E%3Ccircle cx='29' cy='29' r='1.4'/%3E%3Ccircle cx='18.5' cy='10.4' r='1'/%3E%3Ccircle cx='10.4' cy='18.5' r='1'/%3E%3C/g%3E%3C/svg%3E");
+}
+.orn-tl,.orn-br{
+  position:absolute;width:24px;height:24px;background:var(--orn-filigree) no-repeat center/contain;
+  opacity:.62;pointer-events:none;
+}
+.orn-tl{top:3px;left:3px}
+.orn-br{bottom:3px;right:3px;background-image:var(--orn-filigree-br)}
+.parchment-orn::after{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.62;
+  background-repeat:no-repeat,no-repeat;
+  background-size:24px 24px,24px 24px;
+  background-position:top 3px left 3px, bottom 3px right 3px;
+  background-image:var(--orn-filigree), var(--orn-filigree-br);
+}
+
+/* 타로/플레잉카드형 선택지·아이템 카드 */
+.tcard{
+  width:118px;min-height:158px;display:flex;flex-direction:column;gap:6px;
+  padding:10px 9px;cursor:pointer;transition:transform .15s ease, box-shadow .15s ease;
+  flex:none;position:relative;
+}
+.tcard:hover{transform:translateY(-4px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35), 0 8px 14px rgba(0,0,0,.45)}
+.tcard .tc-label{font-family:var(--ds-font-display);font-size:10.5px;font-weight:700;text-align:center;letter-spacing:.02em;border-bottom:1px solid #B9A876;padding-bottom:5px}
+.tcard .tc-icon{flex:1;display:flex;align-items:center;justify-content:center}
+.tcard .tc-icon .msym{font-size:30px;color:#6B4A1E}
+.tcard .tc-desc{font-size:9.5px;line-height:1.35;text-align:center;color:#5B4E33}
+
+/* 볼펜 잉크 선택 표식 (2026-09-04 추가) — "손으로 동그라미 치고 칠하는" 느낌으로 선택 상태 표현
+   .inkmark SVG를 선택 가능한 요소(.tcard, .charsheet 등) 안에 넣고 .sel 클래스가 붙으면 애니메이션 재생 */
+.inkmark{position:absolute;inset:-7px;width:calc(100% + 14px);height:calc(100% + 14px);pointer-events:none;overflow:visible;z-index:5}
+.inkmark .ink-loop{fill:none;stroke:#2b3f7a;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;
+  stroke-dasharray:520;stroke-dashoffset:520;opacity:0;filter:drop-shadow(0 0 1px rgba(43,63,122,.5))}
+.inkmark .ink-wash{fill:#3d5aa8;opacity:0;transform-origin:50% 50%;transform:scale(.6)}
+.sel .inkmark .ink-loop{animation:ink-draw .75s ease-out forwards}
+.sel .inkmark .ink-wash{animation:ink-fill .5s ease-out .55s forwards}
+@keyframes ink-draw{0%{opacity:0;stroke-dashoffset:520}8%{opacity:.85}100%{opacity:.85;stroke-dashoffset:0}}
+@keyframes ink-fill{to{opacity:.16;transform:scale(1)}}
+
+/* 던전 보드 타일 맵 — 5개 지역을 잇는 경로 보드 */
+.board{display:flex;align-items:center;gap:4px;padding:10px;border-radius:8px;background:rgba(0,0,0,.25);flex-wrap:wrap}
+.board .tile{
+  width:34px;height:34px;border-radius:6px;background:var(--ds-surface-container-high);
+  border:1px solid var(--ds-outline-variant);display:flex;align-items:center;justify-content:center;
+  position:relative;flex:none;
+}
+.board .tile .msym{font-size:16px;color:var(--ds-on-surface-variant)}
+.board .tile.cur{border-color:var(--ds-primary);border-width:2px;background:var(--ds-primary-container)}
+.board .tile.cur .msym{color:var(--ds-on-primary-container)}
+.board .tile.cur::after{content:"";position:absolute;top:-5px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:var(--ds-primary);box-shadow:0 0 0 2px var(--ds-surface)}
+.board .tile.done{opacity:.55}
+.board .path{width:14px;height:2px;background:var(--ds-outline-variant);flex:none}
+
+/* 캐릭터 시트 (직업 선택) */
+.charsheet{display:flex;gap:12px;padding:12px}
+.charsheet .silhouette{
+  width:64px;height:96px;flex:none;border-radius:4px;
+  background:linear-gradient(180deg, rgba(59,51,32,.15), rgba(59,51,32,.05));
+  border:1px dashed #B9A876;display:flex;align-items:center;justify-content:center;
+}
+.charsheet .silhouette .msym{font-size:40px;color:#6B4A1E;opacity:.75}
+.charsheet .stats{display:flex;flex-direction:column;gap:4px;flex:1}
+.charsheet .stat-row{display:flex;justify-content:space-between;font-family:var(--ds-font-mono);font-size:10.5px;border-bottom:1px dotted #B9A876;padding-bottom:2px}
+.charsheet .stat-row b{color:#3B3320}
+
+/* 주사위 배지 — 판정(공격·도망 등)이 개입하는 지점의 시각적 표식 */
+.dice{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:var(--ds-primary-container);color:var(--ds-on-primary-container);flex:none}
+.dice .msym{font-size:15px}
+
+/* 배경 씬 (탐색 화면) — 07_visual_style.md "탐색 화면 = 배경 씬" (2026-09-04) */
+.scene{
+  position:relative;height:78px;border-radius:8px;overflow:hidden;flex:none;
+  background:
+    radial-gradient(60% 100% at 50% 30%, rgba(212,175,55,.12), transparent 70%),
+    linear-gradient(180deg, #1a1428, #0a0812);
+  border:1px solid var(--ds-outline-variant);
+  display:flex;align-items:center;justify-content:center;
+}
+.scene .msym{font-size:44px;color:rgba(212,175,55,.35)}
+.scene::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg, transparent 40%, rgba(0,0,0,.55) 100%)}
+.scene .tag{position:absolute;left:8px;bottom:6px;z-index:1;color:#C7BEDA;font-size:9.5px}
+
+/* 대립 구도 (전투 화면) — 07_visual_style.md "전투 화면 = 대립 구도" (2026-09-04) */
+.versus{
+  position:relative;border-radius:8px;overflow:hidden;padding:14px 10px;
+  background:
+    radial-gradient(70% 100% at 50% 100%, rgba(139,46,46,.18), transparent 70%),
+    linear-gradient(180deg, #1a1428, #0a0812);
+  border:1px solid var(--ds-outline-variant);
+  display:flex;align-items:flex-end;justify-content:space-between;gap:8px;
+}
+.versus .side{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1}
+.versus .figure{width:64px;height:88px;border-radius:6px;display:flex;align-items:center;justify-content:center;border:2px solid var(--ds-primary);background:rgba(212,175,55,.08)}
+.versus .figure.foe{border-color:var(--ds-tertiary);background:rgba(255,138,128,.10)}
+.versus .figure .msym{font-size:40px;color:var(--ds-primary)}
+.versus .figure.foe .msym{color:var(--ds-tertiary)}
+.versus .clash{display:flex;flex-direction:column;align-items:center;gap:2px;padding-bottom:30px;flex:none}
+.versus .clash .msym{font-size:22px;color:var(--ds-primary);transform:rotate(90deg)}
+.versus .clash b{font-family:var(--ds-font-display);font-size:10px;color:#C7BEDA;letter-spacing:.08em}
+.versus .name{font-family:var(--ds-font-display);font-size:11px;font-weight:700;color:#E8E1F0}
+
+/* 실제 아트 채움용 — .portrait/.figure/.silhouette/.tc-icon 안에 넣는 <img> 공통 클래스
+   2026-09-04: art-assets/ 실제 이미지 연결용 */
+.figimg{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+.tc-icon img.figimg{object-fit:contain;border-radius:0}
+.scene img.sceneimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.scene .msym,.scene .tag{position:relative;z-index:1}
+
+/* 캐릭터 시트 실루엣 — 상반신/얼굴 중심 흉상 구도로 조정 (2026-09-04, 하체 대신 얼굴이 보이게) */
+.silhouette{width:76px;height:84px}
+.silhouette.lg{width:120px;height:132px}
+
+/* 전체화면 배경 레이아웃 — 탐색·전투 공용 (2026-09-04 추가)
+   .gw .body 전체를 배경 이미지로 채우고, 하단에 반투명 텍스트바 + 가벼운 버튼을 얹는다 */
+.gw .body.fullbleed{padding:0;gap:0;position:relative;overflow:hidden}
+.fullbleed .bgimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;filter:brightness(.72) saturate(.95)}
+.fullbleed::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,8,18,.05) 0%,rgba(10,8,18,.35) 55%,rgba(6,5,12,.88) 100%);z-index:1;pointer-events:none}
+.fullbleed .statusline{position:relative;z-index:2;padding:8px 12px;font-family:var(--ds-font-mono);font-size:10px;color:#E8E1F0;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+.fullbleed .spacer-fill{flex:1;position:relative;z-index:2}
+.fullbleed .textbar{position:relative;z-index:2;margin:0 10px;padding:10px 12px;background:rgba(15,13,26,.66);border:1px solid rgba(212,175,55,.45);border-radius:8px;backdrop-filter:blur(2px)}
+.fullbleed .textbar .ttl{font-family:var(--ds-font-display);font-size:12.5px;font-weight:700;color:var(--ds-primary);margin-bottom:3px}
+.fullbleed .textbar .body-txt{font-size:11px;line-height:1.5;color:#EDE7F5}
+.fullbleed .btnrow{position:relative;z-index:2;display:flex;gap:7px;padding:9px 10px 12px;flex-wrap:wrap}
+.btn-light{
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(10,8,18,.6) 60%);
+  border:1px solid var(--ds-primary);border-bottom-width:2px;color:var(--ds-primary);
+  font-family:var(--ds-font-display);border-radius:7px;padding:7px 14px;font-size:11px;font-weight:700;
+  letter-spacing:.02em;cursor:pointer;backdrop-filter:blur(2px);white-space:nowrap;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 1px 3px rgba(0,0,0,.5);text-shadow:0 1px 2px rgba(0,0,0,.6)
+}
+.btn-light:hover{background:linear-gradient(180deg,rgba(212,175,55,.28),rgba(10,8,18,.5) 60%)}
+.btn-light.danger{border-color:var(--ds-tertiary);color:var(--ds-tertiary)}
+
+/* 전투: 배경 위에 직접 서 있는 대립 구도 (2026-09-04, 진짜 투명 배경이 아니라 가장자리를 마스킹해 배경과 자연스럽게 섞음) */
+.combatants{position:relative;z-index:2;flex:1;display:flex;align-items:flex-end;justify-content:space-between;padding:0 6px}
+.combatant{width:34%;display:flex;flex-direction:column;align-items:center;gap:4px}
+.combatant img{width:100%;display:block;-webkit-mask-image:radial-gradient(ellipse 82% 88% at 50% 52%,#000 58%,transparent 100%);mask-image:radial-gradient(ellipse 82% 88% at 50% 52%,#000 58%,transparent 100%)}
+.combatant .cname{font-family:var(--ds-font-display);font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+.combatant .cbar{width:86px}
+.combatant .cbar .lbl{font-family:var(--ds-font-mono);font-size:9px;display:flex;justify-content:space-between;color:#EDE7F5;text-shadow:0 1px 2px rgba(0,0,0,.9)}
+.combatant .cbar .track{height:8px;border:1px solid rgba(255,255,255,.5);border-radius:4px;background:rgba(0,0,0,.4);overflow:hidden}
+.combatant .cbar .fill{height:100%}
+.vsmark{position:relative;z-index:2;align-self:center;font-family:var(--ds-font-display);font-size:14px;color:var(--ds-primary);text-shadow:0 1px 4px rgba(0,0,0,.9);padding-bottom:40px}
+
+/* 타이틀 장식 (2026-09-04 추가 — 양피지 표지에 어울리는 인장·룰선 디테일) */
+.dungeon-title{display:flex;flex-direction:column;align-items:center;gap:8px}
+.dungeon-title .row{display:flex;align-items:center;gap:10px}
+.dungeon-title .row .fl{font-size:16px;color:#8A6E3A;opacity:.75}
+.dungeon-title .name{font-family:var(--ds-font-display);font-size:27px;font-weight:700;letter-spacing:.07em;color:#3B3320;text-shadow:0 1px 0 rgba(255,255,255,.45),0 2px 3px rgba(59,45,20,.3)}
+.dungeon-title .rule{width:82%;height:1px;background:linear-gradient(90deg,transparent,#8A6E3A 15%,#8A6E3A 85%,transparent);position:relative;margin-top:2px}
+.dungeon-title .rule::after{content:"◆";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:7px;color:#8A6E3A}
+
+/* ============================================================
+   양피지 필사본 디테일 확장 — 2026-09-07 신규(DEC-121)
+   출처: ~/Downloads/quill_parchment_reference/quill_parchment_reference.md
+   (Inkulinati 45% · Darkest Dungeon 25% · Scriptorium 30% 블렌드 제안 중,
+   이미 확정된 "Gilded Dungeon" 재질·색·레이아웃 원칙과 자연스럽게 결합되는
+   두 가지만 선택 적용: ① 큰 양피지 패널의 중앙 접힘선, ② 퀘스트/결과 화면처럼
+   양피지 카드가 이미 있는 곳의 깃펜 필기 연출. 탐색·전투의 fullbleed 배경
+   구성(DEC-116)이나 타로/시트형 작은 카드(.tcard/.charsheet)에는 적용하지
+   않는다 — "화면 전체를 양피지 한 장으로" 바꾸는 재구성은 이번 범위가 아니다.
+   ============================================================ */
+
+/* 중앙 접힘선(Fold Line) — quill_parchment_reference.md의 Inkulinati 참고(2-1절,
+   "가운데 접힘선이 살아 있어 실제 책/문서 같은 인상")를 큰 양피지 패널에만 반영.
+   .parchment::before(이중 테두리)·.parchment-orn::after(필리그리, DEC-120)와
+   같은 가상요소를 또 점유하면 절대배치 충돌이 재발할 수 있어(DEC-120 교훈),
+   가상요소 대신 .inkmark와 동일한 패턴 — 실제 자식 엘리먼트(.foldline)를
+   패널 내부에 직접 넣는 방식으로 구현한다. 새 색상을 짓지 않고 기존 잉크브라운
+   토큰 #6B4A1E(rgb(107,74,30) — .qw-pen/.tc-icon/.silhouette 아이콘과 동일 값)을
+   그대로 재사용하고 알파값만 바꿔 옅게 쓴다(2026-09-07 review-verify-agent
+   Finding 3 반영 — 최초 구현 시 rgba(74,58,26,*)라는 근접하지만 다른 값을 새로
+   만들어 썼던 것을 기존 값으로 통일). */
+.foldline{
+  position:absolute;top:5%;bottom:5%;left:50%;width:3px;transform:translateX(-50%);
+  pointer-events:none;z-index:1;
+  background:linear-gradient(180deg, transparent 0%, rgba(107,74,30,.4) 12%, rgba(107,74,30,.55) 50%, rgba(107,74,30,.4) 88%, transparent 100%);
+  box-shadow:-2px 0 5px -1px rgba(35,26,10,.35), 2px 0 4px -1px rgba(255,250,235,.35);
+}
+
+/* 깃펜 필기 연출(Quill Reveal) — quill_parchment_reference.md 3-1절
+   "글씨 생성 위치를 페이지 공간 안에 귀속시킨다"는 원칙을, 이미 양피지 카드가
+   있는 화면(퀘스트 스크롤·결과지)의 서술 텍스트에만 결합한다. 왼쪽부터 글자가
+   드러나고 그 끝을 작은 펜촉 아이콘이 따라간다. 기존 볼펜 잉크자국(.inkmark,
+   DEC-118)과 용도가 달라 색을 구분 — .inkmark는 "플레이어가 표시"=진남색
+   (#2b3f7a), 이 연출은 "세계가 기록"=기존 잉크브라운(#6B4A1E, .tc-icon/
+   .silhouette 아이콘과 동일 톤)을 재사용해 강조색을 늘리지 않는다. 폰트는
+   손글씨체로 바꾸지 않고 Pretendard 유지(07_visual_style.md 타이포그래피
+   원칙 — 가독성 우선).
+   2026-09-07 수정(review-verify-agent Finding 1, Major 확인): 최초 구현은
+   .qw-pen을 top:-3px(첫 줄 기준 고정)에 두고 인라인 텍스트의 좌→우 진행을
+   그대로 따라가게 했는데, 퀘스트/결과 서술은 실제 글자 수·컨테이너 폭·폰트
+   대체(웹폰트 로드 실패 시 시스템 폰트로 폴백, 환경마다 자간이 다름) 조합에
+   따라 2줄로 줄바꿈될 수 있고, 그 경우 펜이 첫 줄에서만 맞고 둘째 줄부터는
+   위치가 어긋났다(실제로 review-verify-agent 환경에서 재현됨 — 이 환경의
+   Chromium에서는 우연히 1줄로 렌더링되어 처음엔 발견하지 못함, 폰트 폭
+   민감성 자체가 근본 문제). 그래서 펜을 "특정 줄의 글자 끝"이 아니라
+   ".quillwrite 전체 문단 아래의 진행 기준선"을 따라가도록 다시 설계했다 —
+   .quillwrite를 display:block으로 바꿔 문단 전체 폭을 갖게 하고, .qw-pen을
+   문단 하단(bottom:0, padding-bottom:14px로 자리 확보)에 절대배치해 줄 수와
+   무관하게 항상 올바른 위치에 오도록 했다. 텍스트 자체는 여전히 clip-path로
+   왼쪽부터 드러나며, 줄바꿈이 있어도(여러 줄이 동시에 커튼처럼 드러남) 시각적
+   충돌 없이 "기록되는 중"이라는 인상을 유지한다. */
+.quillwrite{position:relative;display:block;max-width:100%;padding-bottom:14px}
+.quillwrite .qw-text{display:block;clip-path:inset(0 100% 0 0);animation:qw-reveal 1.6s steps(40,end) forwards}
+.quillwrite .qw-pen{position:absolute;left:0;bottom:0;font-size:13px;color:#6B4A1E;opacity:0;animation:qw-pen-move 1.6s linear forwards;transform:translateX(-50%) rotate(-38deg)}
+@keyframes qw-reveal{to{clip-path:inset(0 0 0 0)}}
+@keyframes qw-pen-move{0%{left:0;opacity:.85}94%{opacity:.85}100%{left:100%;opacity:0}}
+
+footer.ds{font-size:12px;color:var(--ds-on-surface-variant);line-height:1.7;border-top:1px solid var(--ds-outline-variant);padding-top:16px;margin-top:6px}

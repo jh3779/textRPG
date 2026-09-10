@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>textRPG Unity DS · 2 컴포넌트 v0.8</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="topnav">
+  <span class="brand">textRPG Unity DS <span class="mono" style="font-size:11px;font-weight:500">v0.8</span></span>
+  <a href="design-system.html">1 · 원칙 &amp; 파운데이션</a>
+  <span class="cur">2 · 컴포넌트</span>
+  <a href="patterns.html">3 · 상태 패턴 · 접근성</a>
+  <a href="unity-mapping.html">4 · 구현 매핑</a>
+  <a href="wireframes.html">5 · 화면 · 와이어프레임</a>
+  <span class="spacer"></span>
+  <button data-theme-toggle>◐ 테마</button>
+</nav>
+
+<div class="wrap">
+
+  <header class="pagehead">
+    <div class="t">2 · 컴포넌트 <span class="tag">v0.8 — 접힘선 · 깃펜 필기 연출 추가</span></div>
+    <div class="s">정본: <code>../03_screen_contract.md</code> · <code>../04_data_model.md</code> · <code>../07_visual_style.md</code></div>
+    <div class="toc">
+      <a href="#c0">재질</a><a href="#c1">초상화 프레임</a><a href="#c2">HP/MP 바</a><a href="#c3">상태 바</a><a href="#c4">선택지 카드</a><a href="#c5">캐릭터 시트</a><a href="#c6">보드 타일 맵</a><a href="#c7">주사위 배지</a><a href="#c8">아이템/퀘스트</a><a href="#c9">배지·버튼</a><a href="#c10">전체화면 배경</a><a href="#c11">대립 구도</a><a href="#c12">깃펜 필기 연출</a><a href="#exclude">제외 목록</a>
+    </div>
+  </header>
+
+  <section id="c0" class="sec">
+    <div class="sec-h"><span class="sec-num">C-00</span><span class="sec-t">재질 (Materials)</span><span class="tag">07_visual_style.md "재질" 신규</span></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+      <div class="frame">
+        <div class="wood" style="height:70px;border-radius:8px;border:1px solid var(--ds-outline-variant)"></div>
+        <div class="tag">.wood — 나무 테이블. 모든 화면의 본문 배경</div>
+      </div>
+      <div class="frame">
+        <div class="parchment parchment-orn" style="height:70px"></div>
+        <div class="tag">.parchment — 양피지. 카드·시트·텍스트 패널의 배경</div>
+      </div>
+      <div class="frame">
+        <div style="height:70px;border-radius:8px;border:2px solid var(--ds-primary);background:var(--ds-surface-container)"></div>
+        <div class="tag">금속 프레임 — 초상화·HP바 전용(재질 아님, 기존 원칙 유지)</div>
+      </div>
+      <div class="frame">
+        <div class="parchment" style="height:70px"><div class="foldline"></div></div>
+        <div class="tag">.parchment + .foldline — 큰 양피지 패널 전용 중앙 접힘선(2026-09-07, DEC-121)</div>
+      </div>
+    </div>
+    <div class="note">셋을 섞어 쓰지 않는다 — "인물"은 항상 금속 프레임, "텍스트/선택/아이템"은 항상 양피지, "화면 바탕"은 항상 나무. 재질이 곧 의미 구분선이다.</div>
+    <div class="note" style="margin-top:4px">2026-09-04: <code>.parchment</code>에 비네트(가장자리 어둡게)·비대칭 모서리 반경(손으로 자른 듯한 느낌)·이중 테두리를 추가해 텍스처를 더 살림. 큰 패널(<code>.parchment-orn</code> 수식자)에는 모서리 인장도 얹는다 — 작은 카드(tcard 등)에는 과해서 안 씀. <b>2026-09-07(DEC-120) 개정</b>: 모서리 인장을 유니코드 ❧ 한 글자 대신 인라인 SVG 필리그리(소용돌이 덩굴무늬, <code>--orn-filigree</code>/<code>--orn-filigree-br</code>) 배경으로 교체하고, 비네트를 네 모서리가 개별적으로 그을린 듯 어두워지도록 강화했다. <b>같은 날 수정</b>: 필리그리를 <code>.parchment-orn::after</code> 배경 레이어 2장(좌상단·우하단)으로만 그리도록 정리했다 — 처음에는 <code>::before</code>/<code>::after</code>를 하나씩 썼는데, <code>::before</code>는 <code>.parchment</code>의 기존 이중 테두리가 이미 쓰고 있어 같은 가상요소를 두 규칙이 절대배치로 동시에 건드리면서 테두리가 깨지는 충돌이 있었음(리뷰에서 확인) — 이중 테두리는 원래 방식(<code>::before</code>, inset 사각형) 그대로 두고 필리그리만 옮겨서 겹치지 않게 했다. 더 정밀한 "찢어진 종이 가장자리"가 필요하면 실제 낡은 종이 테두리 이미지를 추가로 생성해 <code>border-image</code>로 넣는 방법도 있음(선택 사항).</div>
+    <div class="note" style="margin-top:4px"><b>2026-09-07(DEC-121) 신규</b>: <code>quill_parchment_reference.md</code>(Inkulinati 참고, "가운데 접힘선이 살아 있어 실제 책/문서 같은 인상")를 반영해, <b>표지·스크롤·결과지처럼 "펼쳐진 문서"로 보이는 큰 패널</b>에 한해 중앙 접힘선(<code>.foldline</code>)을 추가할 수 있다. 가상요소 충돌을 피하려고(DEC-120 교훈) <code>::before</code>/<code>::after</code>를 더 쓰지 않고 <code>.inkmark</code>와 같은 방식 — 실제 자식 엘리먼트를 패널 안에 직접 넣는다. 작은 카드(<code>.tcard</code>/<code>.charsheet</code>)나 탐색·전투의 fullbleed 배경(DEC-116)에는 쓰지 않는다.</div>
+  </section>
+
+  <section id="c1" class="sec">
+    <div class="sec-h"><span class="sec-num">C-01</span><span class="sec-t">초상화 프레임 (Portrait Frame)</span><span class="tag">SCR-003·004 · ENT-101 · 변경 없음</span></div>
+    <div class="card pad" style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div class="portrait"><span class="msym">person</span></div>
+        <div class="tag">size: sm (56px) — 전투 화면용</div>
+      </div>
+      <div class="note" style="flex:1;min-width:220px">직업 선택은 v0.2부터 초상화 프레임이 아니라 캐릭터 시트(C-05)를 쓴다 — "인물 강조"가 아니라 "정보 열람"이 목적이라 재질이 다름.</div>
+    </div>
+  </section>
+
+  <section id="c2" class="sec">
+    <div class="sec-h"><span class="sec-num">C-02</span><span class="sec-t">HP / 경험치 바</span><span class="tag">변경 없음</span></div>
+    <div class="card pad" style="display:flex;flex-direction:column;gap:14px;max-width:360px">
+      <div class="statbar">
+        <div class="lbl"><span>HP</span><span>91 / 100</span></div>
+        <div class="track"><div class="fill hp" style="width:91%"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="c3" class="sec">
+    <div class="sec-h"><span class="sec-num">C-03</span><span class="sec-t">상단 상태 바</span><span class="tag">변경 없음</span></div>
+    <div class="card pad">
+      <div style="display:flex;align-items:center;gap:16px;font-family:var(--ds-font-mono);font-size:12px;flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:4px"><span class="msym" style="font-size:16px;color:var(--ds-primary)">military_tech</span>전사</span>
+        <span style="display:flex;align-items:center;gap:4px"><span class="msym" style="font-size:16px;color:var(--ds-tertiary)">favorite</span>HP 91/100</span>
+        <span style="display:flex;align-items:center;gap:4px"><span class="msym" style="font-size:16px">swords</span>ATK 14</span>
+        <span style="display:flex;align-items:center;gap:4px"><span class="msym" style="font-size:16px;color:var(--ds-primary)">paid</span>Gold 25</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="c4" class="sec">
+    <div class="sec-h"><span class="sec-num">C-04</span><span class="sec-t">선택지 카드 (Tarot Card) — v0.6에서 잉크 선택 표식 추가</span><span class="tag">SCR-003·004 선택지</span></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div class="tcard parchment"><div class="tc-label">1. 던전에 들어간다</div><div class="tc-icon"><span class="msym">meeting_room</span></div><div class="tc-desc">다음 지역으로 이동</div></div>
+      <div class="tcard parchment sel">
+        <svg class="inkmark" viewBox="0 0 100 100" preserveAspectRatio="none"><ellipse class="ink-wash" cx="50" cy="50" rx="46" ry="46"></ellipse><path class="ink-loop" d="M10,18 C3,38 4,68 12,86 C28,97 68,96 88,89 C97,70 96,32 90,14 C74,3 26,4 10,18 Z"></path></svg>
+        <div class="tc-label">2. 상태를 확인한다</div><div class="tc-icon"><span class="msym">badge</span></div><div class="tc-desc">선택된 상태 예시</div>
+      </div>
+    </div>
+    <div class="note">기존 v0.1의 가로 카드(단순 버튼형)를 세로 타로카드형(<code>.tcard</code>)으로 교체 — 상단 라벨(제목) + 중앙 아이콘(추후 일러스트로 교체) + 하단 설명 3단 구조. hover 시 위로 4px 들리며 그림자 강조(테이블 위에서 카드를 집어드는 느낌). 키보드 1/2/3 단축키는 동일하게 유지(REQ-NF-105).</div>
+    <div class="note" style="margin-top:6px">2026-09-04: 선택 시 금색 아웃라인 대신 <b>볼펜으로 동그라미 치는 잉크 자국</b>(<code>.inkmark</code>) — 손으로 직접 그려서 표시하는 느낌. 페이지를 열면 자동 재생(선택 직후 상황을 보여주는 목업이라 즉시 재생, 실제 구현에서는 클릭 시점에 트리거). SVG path 하나(윤곽선, <code>stroke-dasharray</code>로 그려지는 애니메이션) + 옅은 잉크 번짐(fill 페이드인) 2단 구성.</div>
+  </section>
+
+  <section id="c5" class="sec">
+    <div class="sec-h"><span class="sec-num">C-05</span><span class="sec-t">캐릭터 시트 (Character Sheet) — v0.2 신규, 기존 "직업 카드" 대체</span><span class="tag">SCR-002 · ENT-101</span></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));max-width:400px">
+      <div class="parchment charsheet sel">
+        <svg class="inkmark" viewBox="0 0 100 100" preserveAspectRatio="none"><ellipse class="ink-wash" cx="50" cy="50" rx="46" ry="46"></ellipse><path class="ink-loop" d="M10,18 C3,38 4,68 12,86 C28,97 68,96 88,89 C97,70 96,32 90,14 C74,3 26,4 10,18 Z"></path></svg>
+        <div class="silhouette"><img class="figimg" src="../../art-assets/char_전사_상반신.png" alt="전사"></div>
+        <div class="stats">
+          <div style="font-family:var(--ds-font-display);font-weight:700;font-size:12px;color:#3B3320">전사</div>
+          <div class="stat-row"><span>HP</span><b>110</b></div>
+          <div class="stat-row"><span>ATK</span><b>12</b></div>
+          <div class="stat-row"><span>DEF</span><b>5</b></div>
+          <div class="stat-row"><span>ITEM</span><b style="font-size:9.5px">장검</b></div>
+        </div>
+      </div>
+    </div>
+    <div class="note">
+      실루엣 영역(<code>.silhouette</code>)에 실제 업로드된 일러스트 연결됨. 하체 대신 상반신·얼굴이 보이게 크롭한 버전 사용(art-assets/char_전사_상반신.png, 2026-09-04 — 캐릭터 선택은 "누구를 고르는지"가 중요해 얼굴 인식이 우선).
+      스탯은 점선 구분된 "칸" 형태로 — 실제 종이 캐릭터 시트의 빈칸을 채우는 느낌. 스킬/특성 칸은 넣지 않는다(DEC-102, 스킬트리 없음).
+      맨 아래 ITEM 칸은 직업별 시작 아이템 미리보기(DEC-111, 2026-09-04 추가) — 정확한 아이템명은 OQ-103 확정 후 교체.
+    </div>
+  </section>
+
+  <section id="c6" class="sec">
+    <div class="sec-h"><span class="sec-num">C-06</span><span class="sec-t">보드 타일 맵 (Board Tile Map) — v0.2 신규, v0.3에서 클릭 가능하게 확정</span><span class="tag">SCR-003 · 04_data_model ENT-104 Location · DEC-110</span></div>
+    <div class="card pad">
+      <div class="board">
+        <div class="tile cur" style="cursor:pointer"><span class="msym">castle</span></div>
+        <div class="path"></div>
+        <div class="tile" style="cursor:pointer"><span class="msym">merge</span></div>
+        <div class="path"></div>
+        <div class="tile"><span class="msym">inventory_2</span></div>
+        <div class="path"></div>
+        <div class="tile"><span class="msym">pest_control</span></div>
+        <div class="path"></div>
+        <div class="tile"><span class="msym">castle</span></div>
+      </div>
+      <div class="note" style="margin-top:6px">이동 가능한 다음 타일(위 예시: 현재 위치+바로 다음 타일)만 클릭 가능 — 나머지는 표시 전용(회색, 클릭 불가).</div>
+    </div>
+    <div class="note">5개 지역(입구→갈림길→무기고→통로→보스방)을 타일+경로로 시각화, 현재 위치는 금색 테두리 타일 + 위쪽 토큰 점. <b>주의:</b> 실제로는 자유 이동이 불가능한 선형 구조(콘솔 버전과 동일). DEC-110(2026-09-04)로 타일 클릭은 허용됐지만, 클릭 가능한 건 "이동 가능한 다음 타일"뿐이고 그 결과도 같은 위치의 선택지 카드와 동일한 행동을 실행할 뿐이다 — 타일을 눌러서 아무 데나(예: 이미 지나온 지역이나 몇 칸 앞) 갈 수 있는 것처럼 보이면 안 됨. 비활성 타일은 흐리게 + 클릭 불가.</div>
+  </section>
+
+  <section id="c7" class="sec">
+    <div class="sec-h"><span class="sec-num">C-07</span><span class="sec-t">주사위 배지 (Dice Badge) — v0.2 신규</span><span class="tag">STATE-102 · 확률 판정 지점</span></div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <div class="dice"><span class="msym">casino</span></div>
+      <div class="note">전투 공격/도망처럼 확률이 개입하는 행동 근처에 장식으로 배치 — "여기서 판정이 일어난다"는 것을 시각적으로 암시. 실제 주사위를 굴리는 애니메이션은 Could(01_requirements) — MVP는 정지 아이콘.</div>
+    </div>
+  </section>
+
+  <section id="c8" class="sec">
+    <div class="sec-h"><span class="sec-num">C-08</span><span class="sec-t">아이템 · 퀘스트</span><span class="tag">SCR-005·006 · v0.2에서 카드/스크롤로 재질 통일</span></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+      <div class="tcard parchment"><div class="tc-label">회복 물약</div><div class="tc-icon"><img class="figimg" src="../../art-assets/item_회복물약.png" alt="회복 물약"></div><div class="tc-desc">체력 30 회복</div></div>
+      <div class="parchment pad" style="width:200px;padding:12px">
+        <div style="display:flex;justify-content:space-between"><b style="font-family:var(--ds-font-display);font-size:12px;color:#3B3320">던전 탈출</b><span class="badge" style="background:var(--ds-st-busy-bg);color:var(--ds-st-busy-fg);font-size:9px">진행 중</span></div>
+        <div class="tag" style="margin-top:6px;color:#8A7568">진행도 0/1</div>
+      </div>
+    </div>
+    <div class="note">아이템은 C-04와 동일한 <code>.tcard</code>, 퀘스트는 양피지 스크롤 패널 — 둘 다 "종이" 재질이라 인물(금속 프레임)과 구분된다.</div>
+  </section>
+
+  <section id="c9" class="sec">
+    <div class="sec-h"><span class="sec-num">C-09</span><span class="sec-t">상태 배지 · 버튼</span><span class="tag">v0.6 — 금속 각인 디테일 추가</span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <span class="badge" style="background:var(--ds-st-busy-bg);color:var(--ds-st-busy-fg)">진행 중</span>
+      <div class="btn btn-fill">확정</div>
+      <div class="btn btn-out">타이틀로 돌아가기</div>
+      <div class="btn-light">가벼운 버튼</div>
+    </div>
+    <div class="note" style="margin-top:8px">2026-09-04: 밋밋한 평면 버튼 대신 <code>.btn-fill</code>은 그라디언트 베벨(눌린 금속 각인 느낌) + 모서리 다이아몬드 장식, <code>.btn-out</code>도 세리프(Cinzel) 레터스페이싱 적용. 탐색·전투용 <code>.btn-light</code>는 "가벼움" 유지가 목적이라 장식은 최소화하고 은은한 그라디언트·하단 강조 테두리만 추가.</div>
+  </section>
+
+  <section id="c10" class="sec">
+    <div class="sec-h"><span class="sec-num">C-10</span><span class="sec-t">전체화면 배경 레이아웃 (Fullbleed) — v0.5 재설계</span><span class="tag">SCR-003·004 · 2026-09-04</span></div>
+    <div class="card pad" style="max-width:420px;padding:0">
+      <div class="gw" style="width:100%;height:220px">
+        <div class="body fullbleed">
+          <img class="bgimg" src="../../art-assets/scene_던전입구.png" alt="던전 입구">
+          <div class="statusline">[라운드 1] 전사 HP 100/100</div>
+          <div class="spacer-fill"></div>
+          <div class="textbar"><div class="ttl">던전 입구</div><div class="body-txt">차가운 바람이 새어 나오는 던전 입구.</div></div>
+          <div class="btnrow"><div class="btn-light">1. 들어간다</div><div class="btn-light">2. 확인</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="note">기존 카드형 <code>.scene</code>(작은 배경 패널) 대신, 화면 전체를 배경 이미지로 채우고(<code>.fullbleed</code>) 상태 한 줄·텍스트바·가벼운 버튼(<code>.btn-light</code>)을 반투명 레이어로 얹는다(양피지 카드 사용 안 함 — 배경이 곧 카드 역할). 하단 그라디언트로 텍스트 가독성 확보.</div>
+  </section>
+
+  <section id="c11" class="sec">
+    <div class="sec-h"><span class="sec-num">C-11</span><span class="sec-t">대립 구도 (Versus) — v0.5 재설계, 배경 위 직접 배치</span><span class="tag">SCR-004 · 07_visual_style.md "전투 화면 = 대립 구도"</span></div>
+    <div class="card pad" style="max-width:420px;padding:0">
+      <div class="gw" style="width:100%;height:220px">
+        <div class="body fullbleed">
+          <img class="bgimg" src="../../art-assets/scene_어두운통로.png" alt="전투 배경">
+          <div class="combatants">
+            <div class="combatant">
+              <img src="../../art-assets/char_전사.png" alt="전사">
+              <div class="cname">전사</div>
+              <div class="cbar"><div class="track"><div class="fill" style="width:94%;background:var(--ds-primary)"></div></div></div>
+            </div>
+            <div class="vsmark"><span class="msym" style="display:block;font-size:16px">bolt</span>VS</div>
+            <div class="combatant">
+              <img src="../../art-assets/enemy_고블린_약소형.png" alt="고블린">
+              <div class="cname">고블린</div>
+              <div class="cbar"><div class="track"><div class="fill" style="width:57%;background:var(--ds-tertiary)"></div></div></div>
+            </div>
+          </div>
+          <div class="btnrow"><div class="btn-light">공격한다</div><div class="btn-light danger">도망친다</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="note">기존 카드 프레임(<code>.figure</code>) 안에 인물을 가두던 방식 대신, 캐릭터를 그 전투의 실제 배경(예: 어두운 통로) 위에 직접 세운다 — 진짜 "그 상황"처럼 보이게. 인물 이미지 가장자리는 <code>mask-image</code>로 페이드시켜 배경과 자연스럽게 섞음(원본이 진짜 투명 PNG가 아니라서 쓰는 임시 처리 — 배경 제거 작업을 하면 불필요해짐). 판정 주사위(C-07)는 버튼 줄에 함께 배치 가능.</div>
+  </section>
+
+  <section id="c12" class="sec">
+    <div class="sec-h"><span class="sec-num">C-12</span><span class="sec-t">깃펜 필기 연출 (Quill Reveal) — 2026-09-07 신규</span><span class="tag">DEC-121 · SCR-006 퀘스트 · SCR-007·008 결과</span></div>
+    <div class="parchment parchment-orn pad" style="max-width:280px;padding:16px 14px;position:relative">
+      <div class="foldline"></div>
+      <div style="font-family:var(--ds-font-display);font-size:12px;font-weight:700;color:#3B3320;margin-bottom:6px;position:relative;z-index:2">던전 탈출</div>
+      <div class="quillwrite" style="font-size:11px;line-height:1.5;color:#5B4E33;position:relative;z-index:2">
+        <span class="qw-text">보스의 방까지 도달해 던전의 주인을 쓰러뜨리세요.</span>
+        <span class="msym qw-pen">edit</span>
+      </div>
+    </div>
+    <div class="note" style="margin-top:8px"><code>quill_parchment_reference.md</code>(Inkulinati 45% · Darkest Dungeon 25% · Scriptorium 30% 블렌드 제안) 중 "페이지 위에 기록이 쓰여진다" 구조를, <b>이미 양피지 카드가 있는 화면(퀘스트·결과)에 한해서만</b> 결합했다 — 화면 전체를 페이지로 바꾸는 재구성은 하지 않았다(그건 이미 확정된 탐색·전투 fullbleed 배경 구성(DEC-116)과 충돌하므로 적용하지 않음). 왼쪽부터 글자가 드러나고 그 끝을 작은 펜촉 아이콘(<code>.qw-pen</code>)이 따라간다(<code>clip-path</code> 애니메이션, SVG 아님 — 순수 텍스트라 <code>.inkmark</code>와 달리 SVG 경로가 필요 없음). 색은 새로 늘리지 않고 기존 잉크브라운(<code>#6B4A1E</code>, <code>.tc-icon</code>/<code>.silhouette</code> 아이콘과 동일 톤)을 재사용 — 선택 표시용 진남색 잉크(<code>.inkmark</code>, DEC-118)와는 "누가 표시했나"가 달라 색으로 구분한다(플레이어가 표시 vs 세계가 기록). 손글씨 폰트로 바꾸지 않고 Pretendard를 그대로 유지한다(07_visual_style.md 타이포그래피 원칙 — 가독성 우선).</div>
+  </section>
+
+  <section id="exclude" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">✕</span><span class="sec-t">제외 목록</span><span class="tag">01_requirements.md Won't</span></div>
+    <div class="tblwrap"><table>
+      <tr><th>컴포넌트</th><th>제외 사유</th></tr>
+      <tr><td>스킬트리 / 스킬 포인트 배분 UI</td><td>DEC-102 — 직업은 시작 스탯만 다름</td></tr>
+      <tr><td>멀티플레이 로비 / 파티원 목록</td><td>01_requirements Won't — 싱글플레이만</td></tr>
+      <tr><td>세계관 파일 업로드 화면</td><td>01_requirements Won't — 내장 세계관 1개만(DEC-104)</td></tr>
+      <tr><td>보드 타일로 아무 지역이나 자유 이동(진짜 클릭-투-무브)</td><td>콘솔 버전은 선형 구조 — 타일 클릭은 DEC-110으로 허용됐지만 "이미 가능한 다음 이동"의 대체 입력일 뿐, 새로운 자유 탐험 기능이 아님(C-06 주의 참조)</td></tr>
+      <tr><td>실제 주사위 굴림 애니메이션/RNG 노출 UI</td><td>Could 항목(01_requirements) — MVP는 정지 아이콘만</td></tr>
+    </table></div>
+  </section>
+
+  <footer class="ds">이전 <a href="design-system.html">1 · 원칙 &amp; 파운데이션</a> · 다음 → <a href="patterns.html">3 · 상태 패턴 · 접근성</a></footer>
+</div>
+
+<script src="ds.js"></script>
+</body>
+</html>

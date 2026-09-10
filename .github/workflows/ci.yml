@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main, unity-redesign]
+  pull_request:
+    branches: [main, unity-redesign]
+
+jobs:
+  cpp-build:
+    name: C++ 콘솔 코어 CMake 빌드
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache CMake FetchContent 의존성
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-fetchcontent-
+
+      - name: Configure (cmake -B build -S .)
+        run: cmake -B build -S .
+
+      - name: Build (cmake --build build --config Release)
+        run: cmake --build build --config Release
+
+  pre-commit:
+    name: pre-commit 훅 실행
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1

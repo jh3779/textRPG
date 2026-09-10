@@ -10,8 +10,16 @@ BattleSystem::BattleSystem(Player* p, Enemy* e)
       round(0) {
 }
 
-BattleResult BattleSystem::startBattle() {
-    std::cout << "\n전투 시작! " << enemy->getName() << " 등장!\n";
+BattleResult BattleSystem::startBattle(AiNarrator* narrator) {
+    std::string intro = "전투 시작! " + enemy->getName() + " 등장!";
+    if (narrator != nullptr && narrator->isEnabled()) {
+        intro = narrator->narrate(
+            "battle_start",
+            enemy->getName() + "와(과)의 전투가 시작됨. 플레이어 HP "
+                + std::to_string(player->getHp()) + "/" + std::to_string(player->getMaxHp()),
+            intro);
+    }
+    std::cout << "\n" << intro << "\n";
 
     while (player->isAlive() && enemy->isAlive()) {
         round++;

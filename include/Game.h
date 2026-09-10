@@ -19,6 +19,7 @@
 #include "BattleSystem.h"
 #include "Quest.h"
 #include "Inventory.h"
+#include "AiNarrator.h"
 #include <string>
 #include <vector>
 
@@ -26,7 +27,6 @@
 enum class GameState {
     MENU,           // 메인 메뉴
     PLAYING,        // 게임 진행 중
-    PAUSED,         // 일시 정지
     GAME_OVER,      // 게임 오버
     QUIT            // 게임 종료
 };
@@ -45,6 +45,10 @@ private:
     int gameRound;              // 현재 게임 라운드
     bool armoryLooted;          // 무기고 보상 획득 여부
     bool goblinDefeated;        // 고블린 처치 여부
+
+    // 💡 선택 기능: 로컬 ai_service/에 연결해 위치/전투/승패 서술을 동적으로 받아옴
+    // (서비스가 꺼져 있으면 항상 기존 정적 텍스트로 폴백)
+    AiNarrator aiNarrator;
 
 public:
     // 💡 생성자: 게임 초기화

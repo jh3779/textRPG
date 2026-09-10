@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>textRPG Unity DS · 1 원칙 &amp; 파운데이션 v0.8</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="topnav">
+  <span class="brand">textRPG Unity DS <span class="mono" style="font-size:11px;font-weight:500">v0.8</span></span>
+  <span class="cur">1 · 원칙 &amp; 파운데이션</span>
+  <a href="components.html">2 · 컴포넌트</a>
+  <a href="patterns.html">3 · 상태 패턴 · 접근성</a>
+  <a href="unity-mapping.html">4 · 구현 매핑</a>
+  <a href="wireframes.html">5 · 화면 · 와이어프레임</a>
+  <span class="spacer"></span>
+  <button data-theme-toggle>◐ 테마</button>
+</nav>
+
+<div class="wrap">
+
+  <header class="pagehead">
+    <div class="t">1 · 원칙 &amp; 파운데이션</div>
+    <div class="s">textRPG를 Unity 데스크톱 TRPG로 "승격"하는 비주얼 언어. 정본: <code>../07_visual_style.md</code> · <code>../00_project_brief.md</code></div>
+    <div class="toc">
+      <a href="#s1">원칙</a><a href="#s2">색 — Gilded Dungeon</a><a href="#s3">타이포그래피</a><a href="#s4">간격·모양·고도</a><a href="#s5">모션</a>
+    </div>
+  </header>
+
+  <section id="s1" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">P-01</span><span class="sec-t">이 문서가 소유하는 것 / 소유하지 않는 것</span><span class="tag">design-system-docs 원칙</span></div>
+    <div class="note">
+      이 문서 세트는 <b>시각 토큰 · 컴포넌트 · 상태 표현 · 화면 흐름 · 구현 매핑</b>만 소유한다.
+      화면 계약(누가 무엇을 볼 수 있는가) · 데이터 모델 · 상태 전이 규칙의 정본은
+      <code>../03_screen_contract.md</code> · <code>../04_data_model.md</code> · <code>../05_state_machine.md</code>다.
+      이 문서에 없는 화면·상태를 발명하지 않으며, 발명이 필요하면 정본 문서를 먼저 갱신한다.
+    </div>
+  </section>
+
+  <section id="s1b" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">P-02</span><span class="sec-t">디자인 원칙 6가지</span><span class="tag">00_project_brief · 07_visual_style</span></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+      <div class="note"><b style="color:var(--ds-on-surface)">① 수치는 그대로.</b> 전투 확률·HP·경험치 공식은 콘솔 C++ 버전과 1:1 동일 — 비주얼만 바뀐다(00_project_brief 핵심 가치).</div>
+      <div class="note"><b style="color:var(--ds-on-surface)">② 초상화는 항상 액자 안에.</b> 이미지가 프레임 없이 화면에 그냥 떠 있지 않는다(07_visual_style "하지 않는 것").</div>
+      <div class="note"><b style="color:var(--ds-on-surface)">③ 포인트 컬러 하나 + 기능색 하나.</b> 금색(강조) + 적색(HP/위험) 이외의 강조색을 늘리지 않는다.</div>
+      <div class="note"><b style="color:var(--ds-on-surface)">④ 색만으로 말하지 않는다.</b> HP 위험 상태는 색 + 숫자로 이중 표현(색맹 고려, 07_visual_style 접근성).</div>
+      <div class="note"><b style="color:var(--ds-on-surface)">⑤ 텍스트 서술은 유지.</b> 시각 정보는 "더하는" 것이지 콘솔 버전의 서술 텍스트를 없애는 게 아니다(01_requirements Should).</div>
+      <div class="note"><b style="color:var(--ds-on-surface)">⑥ 없는 걸 만들지 않는다.</b> 스킬트리·멀티플레이 로비·세계관 업로드 UI는 이번 범위에 없다(2 · 컴포넌트 § 제외 목록).</div>
+      <div class="note"><b style="color:var(--ds-on-surface)">⑦ 재질이 곧 의미다 (v0.2).</b> 나무=화면 바탕, 양피지=텍스트/선택/아이템, 금속 프레임=인물. 세 재질을 섞어 쓰지 않는다 — <a href="components.html#c0">2 · 컴포넌트 §재질</a> 참조.</div>
+    </div>
+  </section>
+
+  <section id="s2" class="sec">
+    <div class="sec-h"><span class="sec-num">2</span><span class="sec-t">색 — ColorScheme "Gilded Dungeon"</span><span class="tag">07_visual_style.md</span></div>
+    <div class="note">라이트는 문서 열람용 양피지 톤, 다크는 실제 게임과 동일한 톤이다(상단 "◐ 테마"로 전환). 게임 자체는 항상 다크 톤만 사용한다 — 라이트는 이 설계 문서를 낮에도 편하게 보기 위한 열람 모드일 뿐, 게임 내 라이트모드 요구사항은 없다.</div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+      <div class="card pad">
+        <div style="height:44px;border-radius:8px;background:var(--ds-primary)"></div>
+        <div style="margin-top:8px;font-size:12.5px;font-weight:700">Primary (금색)</div>
+        <div class="tag">버튼·제목·선택 강조</div>
+      </div>
+      <div class="card pad">
+        <div style="height:44px;border-radius:8px;background:var(--ds-secondary)"></div>
+        <div style="margin-top:8px;font-size:12.5px;font-weight:700">Secondary</div>
+        <div class="tag">보조 텍스트·비활성 요소</div>
+      </div>
+      <div class="card pad">
+        <div style="height:44px;border-radius:8px;background:var(--ds-tertiary)"></div>
+        <div style="margin-top:8px;font-size:12.5px;font-weight:700">Tertiary (HP/위험)</div>
+        <div class="tag">HP 바 · 위험 경고 전용</div>
+      </div>
+      <div class="card pad">
+        <div style="height:44px;border-radius:8px;background:var(--ds-surface-container-high);border:1px solid var(--ds-outline-variant)"></div>
+        <div style="margin-top:8px;font-size:12.5px;font-weight:700">Surface Container High</div>
+        <div class="tag">패널·카드 배경</div>
+      </div>
+      <div class="card pad">
+        <div style="height:44px;border-radius:8px;background:var(--ds-surface)"></div>
+        <div style="margin-top:8px;font-size:12.5px;font-weight:700">Surface</div>
+        <div class="tag">화면 배경</div>
+      </div>
+      <div class="card pad">
+        <div style="height:44px;border-radius:8px;background:var(--ds-error)"></div>
+        <div style="margin-top:8px;font-size:12.5px;font-weight:700">Error</div>
+        <div class="tag">폼 검증 등 일반 오류(HP 아님)</div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:4px"><b>tertiary는 HP/위험 한 가지 의미에만 격리한다</b> — 다른 위험 신호(예: 저장 실패)는 error 토큰을 쓰고 tertiary를 섞어 쓰지 않는다.</div>
+  </section>
+
+  <section id="s3" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">3</span><span class="sec-t">타이포그래피</span><span class="tag">07_visual_style.md</span></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
+      <div>
+        <div style="font-family:var(--ds-font-display);font-size:28px;font-weight:700">Dungeon Gate</div>
+        <div class="note">Display — Cinzel. 화면 제목·직업명·지역명 등 "게임 내 타이틀"에만 사용. 세리프 특유의 고전 판타지 인장 느낌.</div>
+      </div>
+      <div>
+        <div style="font-family:var(--ds-font-plain);font-size:16px">차가운 바람이 새어 나오는 던전 입구에 서 있습니다.</div>
+        <div class="note">Body — Pretendard Variable. 서술 텍스트·버튼·UI 라벨 전반. 강조는 SemiBold(600) — 한글 Medium(500)은 변별력이 약함.</div>
+      </div>
+      <div>
+        <div style="font-family:var(--ds-font-mono);font-size:16px">HP 91 / 100 · ATK 14</div>
+        <div class="note">Numeric — Roboto Mono. HP·공격력·골드 등 수치와 상태바 라벨에 사용해 자릿수가 흔들리지 않게 한다.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="s4" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">4</span><span class="sec-t">간격 · 모양 · 고도</span><span class="tag">M3 스케일 그대로 채택</span></div>
+    <div class="note">
+      간격은 4px 배수(4/8/12/16/20/24/32/40). 모양(radius)은 카드 12 · 소형 요소 8 · 대형 다이얼로그 28.
+      그림자(elevation)는 시트·다이얼로그·드롭다운에만 쓰고, 상시 노출되는 카드(전투 화면 등)에는 테두리(outline-variant 1px)만 사용한다 —
+      다크 판타지 톤에서는 과한 그림자가 탁해 보이기 쉬움.
+    </div>
+  </section>
+
+  <section id="s5" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">5</span><span class="sec-t">모션</span><span class="tag">07_visual_style.md · 01_requirements Could</span></div>
+    <div class="note">
+      화면 전환은 200~260ms 짧은 페이드(ease-out). 텍스트는 기본적으로 즉시 표시한다 — 콘솔 버전처럼 한 글자씩
+      타이핑되는 연출은 <b>Could</b> 항목이라 MVP에는 넣지 않는다(01_requirements.md). 넣게 되면 스킵 가능해야 한다는
+      원칙만 미리 남겨둔다(웹 버전 기획 때의 접근성 원칙을 승계).
+    </div>
+  </section>
+
+  <footer class="ds">다음 → <a href="components.html">2 · 컴포넌트</a></footer>
+</div>
+
+<script src="ds.js"></script>
+</body>
+</html>

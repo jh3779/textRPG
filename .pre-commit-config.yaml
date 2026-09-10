@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0  # 2026-09-10 확인 시점 최신 안정 태그
+    hooks:
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=3000"]
+        exclude: '^(art-assets/|unity/Assets/Art/|unity/Builds/)'
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: trailing-whitespace
+        exclude: '^(unity/Assets/.*\.(unity|meta|asset|mat)|unity/Assets/TextMesh Pro/.*|unity/ProjectSettings/.*|unity/Library/.*|art-assets/.*\.png)$'
+      - id: end-of-file-fixer
+        exclude: '^(unity/Assets/.*\.(unity|meta|asset|mat)|unity/Assets/TextMesh Pro/.*|unity/ProjectSettings/.*|unity/Library/.*|art-assets/.*\.png)$'
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+        exclude: '^(unity/Assets/.*\.(unity|meta|asset|mat)|unity/Assets/TextMesh Pro/.*|unity/ProjectSettings/.*)$'
+  - repo: local
+    hooks:
+      - id: no-unity-test-artifacts
+        name: "Unity 테스트 결과 XML/스크래치 검증 파일 커밋 차단"
+        language: fail
+        entry: >-
+          Unity PlayMode/EditMode 테스트 실행 결과 XML이나 임시 검증 스크립트 산출물은 절대 커밋하지 않습니다
+          (DEC-133 사고 재발 방지). 정말 의도한 파일이면 이름을 바꾸거나 .gitignore 예외를 명시적으로 추가하세요.
+        files: '(^|/)(scratch_.*results.*|.*playmode.*results.*|.*editmode.*results.*|verify_(play|edit)mode.*)\.xml$'

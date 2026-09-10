@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>textRPG Unity DS · 4 구현 매핑 v0.8</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="topnav">
+  <span class="brand">textRPG Unity DS <span class="mono" style="font-size:11px;font-weight:500">v0.8</span></span>
+  <a href="design-system.html">1 · 원칙 &amp; 파운데이션</a>
+  <a href="components.html">2 · 컴포넌트</a>
+  <a href="patterns.html">3 · 상태 패턴 · 접근성</a>
+  <span class="cur">4 · 구현 매핑</span>
+  <a href="wireframes.html">5 · 화면 · 와이어프레임</a>
+  <span class="spacer"></span>
+  <button data-theme-toggle>◐ 테마</button>
+</nav>
+
+<div class="wrap">
+
+  <header class="pagehead">
+    <div class="t">4 · 구현 매핑 (Unity / C#)</div>
+    <div class="s">정본: <code>../06_open_questions.md</code> (DEC-101~107, OQ-101~104) · 이 페이지는 결정을 내리지 않고 매핑만 정리한다</div>
+    <div class="toc">
+      <a href="#m1">토큰 → Unity 자산</a><a href="#m2">컴포넌트 → 프리팹</a><a href="#m3">화면 → 씬/패널</a><a href="#m4">상태 → C#</a><a href="#m5">저장</a><a href="#conflict">Conflict List</a>
+    </div>
+  </header>
+
+  <section id="m1" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">M-01</span><span class="sec-t">디자인 토큰 → Unity 자산</span><span class="tag">DEC-103</span></div>
+    <div class="note">
+      <code>styles.css</code>의 <code>--ds-*</code> 색·간격 토큰은 Unity <code>ScriptableObject</code> 하나(예: <code>UITheme.asset</code>)로
+      1:1 이식한다 — 코드에 색을 하드코딩하지 않고 이 애셋을 모든 UI 컴포넌트가 참조하게 해서, 나중에 팔레트를 바꿔도
+      애셋 하나만 수정하면 되게 한다. 폰트는 Cinzel(제목)·Pretendard(본문)·Roboto Mono(수치)를 TMP(TextMeshPro) 폰트 애셋으로 등록.
+      <br><br>
+      <b>2026-09-08 구현 완료(DEC-128)</b>: 축소 구현으로 남아 있던 정적 상수(<code>UIColors.cs</code>)를
+      <code>UITheme</code>(<code>[CreateAssetMenu]</code> <code>ScriptableObject</code>, <code>unity/Assets/Scripts/UI/UITheme.cs</code>) 클래스로 승격하고,
+      <code>ScriptableObject.CreateInstance</code> + <code>AssetDatabase.CreateAsset/SaveAssets</code>를 쓰는 에디터 배치 스크립트
+      (<code>unity/Assets/Editor/UIThemeSetupTool.cs</code>, 메뉴 "TextRPG/3. Create UITheme Asset")로 실제 <code>Assets/Resources/UITheme.asset</code>
+      인스턴스를 생성했다(손 편집 없이 GUID/직렬화 안전). 색상 12개(<code>Surface</code>·<code>SurfaceContainerHigh</code>·<code>Primary</code>·<code>Tertiary</code>·
+      <code>OnSurface</code>·<code>OnSurfaceVariant</code>·<code>OutlineVariant</code>·<code>TextBarBackground</code>·<code>ScrimBottom</code>·<code>InkMark</code>·
+      <code>QuillInk</code>·<code>FoldLine</code>) 전부를 <code>UIColors</code> 값과 16진수 단위로 대조해 정확히 일치시켰다(값 변경 없는 순수 리팩터링).
+      <br><br>
+      <b>"모든 UI 컴포넌트가 참조" 권고를 부분 이행한 이유</b>: 코드 감사 결과 <code>UIColors.*</code>를 실제로 참조하는 유일한 코드는
+      씬 빌드 시점에 정적으로 값을 읽어 GameObject에 색을 굽는 에디터 배치 스크립트(<code>ProjectSetupTool.cs</code>)뿐이었고,
+      런타임 <code>*PanelController</code>들은 색상을 코드로 참조하지 않고(이미 구워진 씬 값을 그대로 사용) 있었다. 따라서
+      <code>ProjectSetupTool.cs</code>는 계속 <code>UIColors</code> 정적 상수를 그대로 쓰게 두고(자산 로드를 거칠 이유가 없음),
+      <code>UIColors</code> 클래스 자체는 삭제하지 않았다(<code>UITheme.cs</code> 필드 기본값과 <code>UIThemeSetupTool</code>의 asset 생성 로직 둘 다
+      이 클래스를 값의 정본으로 그대로 참조해 드리프트를 막는다). <code>UITheme.asset</code>은 앞으로 런타임에 팔레트를 인스펙터 참조나
+      <code>Resources.Load&lt;UITheme&gt;("UITheme")</code>로 읽어야 하는 신규 UI 컴포넌트가 쓸 수 있도록 실체화해 둔 것이다 — 기존
+      컨트롤러를 강제로 전환하는 것은 이번 작업 범위(기술부채 해소, 순수 리팩터링) 밖의 과설계로 판단해 하지 않았다.
+    </div>
+  </section>
+
+  <section id="m2" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">M-02</span><span class="sec-t">컴포넌트 → 프리팹</span><span class="tag">2 · 컴포넌트 페이지 대응</span></div>
+    <div class="tblwrap"><table>
+      <tr><th>이 문서의 컴포넌트</th><th>Unity 프리팹(안)</th></tr>
+      <tr><td>초상화 프레임 (C-01)</td><td><code>PortraitFrame.prefab</code> — Image(테두리) + Image(초상화) 중첩, size 프리셋(sm/lg)은 Layout Element로</td></tr>
+      <tr><td>HP/경험치 바 (C-02)</td><td><code>StatBar.prefab</code> — Unity <code>Slider</code> 또는 fillAmount Image + TMP 라벨(현재/최대 숫자 오버레이)</td></tr>
+      <tr><td>타로 선택지/아이템 카드 (C-04·C-08, v0.2)</td><td><code>TarotCard.prefab</code> — Button + Image(양피지 스프라이트 9-slice) + 아이콘/일러스트 슬롯 + TMP 라벨. hover lift는 <code>LayoutElement</code> anchoredPosition 트윈(DOTween 등)</td></tr>
+      <tr><td>캐릭터 시트 (C-05, v0.2 — 기존 직업 카드 대체)</td><td><code>CharacterSheet.prefab</code> — 양피지 배경 + 실루엣/일러스트 Image + 스탯 행 3개(TMP), Toggle Group으로 단일 선택</td></tr>
+      <tr><td>보드 타일 맵 (C-06, v0.2 신규)</td><td><code>DungeonBoard.prefab</code> — <code>HorizontalLayoutGroup</code>으로 타일 5개 + 연결선 Image, 현재 위치는 데이터 바인딩된 활성 타일 스타일 전환</td></tr>
+      <tr><td>주사위 배지 (C-07, v0.2 신규)</td><td><code>DiceBadge.prefab</code> — 아이콘 Image 하나, 확률 판정 함수 호출 지점 UI에 조건부 노출</td></tr>
+      <tr><td>재질(나무·양피지, C-00, v0.2 신규)</td><td>Unity <code>Sprite</code>(9-slice) 두 종류로 제작 — 코드로 그리지 않고 텍스처 애셋으로. 이 문서의 CSS 그라디언트는 웹 프리뷰 근사치일 뿐, 실제 아트는 OQ-104 확정 후 교체</td></tr>
+      <tr><td>배경 씬 (C-10, v0.3 신규)</td><td><code>SceneBackdrop.prefab</code> — 지역별 배경 Sprite 하나 + 하단 그라디언트 오버레이 Image. <code>ExplorePanel</code> 상단에 고정 배치, 지역 전환 시 Sprite만 교체(패널 자체는 유지)</td></tr>
+      <tr><td>대립 구도 (C-11, v0.3 신규)</td><td><code>VersusStage.prefab</code> — 좌우 <code>CharacterFigure</code>(플레이어)·<code>EnemyFigure</code>(적) + 중앙 clash 아이콘. <code>BattlePanel</code> 상단에 배치, 기존 <code>PortraitFrame</code>보다 큰 사이즈 프리셋 사용</td></tr>
+      <tr><td>중앙 접힘선 (C-00 확장, v0.8/DEC-121 신규)</td><td>별도 프리팹 없이 <code>Image</code> 한 장(세로 그라디언트 스프라이트, 9-slice 아님) — 표지·스크롤·결과지 프리팹의 자식으로 중앙에 고정 배치. <code>CharacterSheet</code>·<code>TarotCard</code> 등 작은 카드 프리팹에는 넣지 않는다</td></tr>
+      <tr><td>깃펜 필기 연출 (C-12, v0.8/DEC-121 신규)</td><td>별도 프리팹보다 <code>QuillRevealText</code> 같은 작은 헬퍼 컴포넌트(TMP 텍스트의 <code>maxVisibleCharacters</code>를 코루틴으로 순차 증가 + 펜촉 아이콘 <code>RectTransform</code>을 같은 시간 동안 이동) — <code>QuestPanel</code>·<code>ResultPanel</code>의 서술 텍스트에만 붙인다. 웹 프리뷰의 <code>clip-path</code> 애니메이션과 시각적으로 동등한 결과를 내는 것이 목표. <b>2026-09-07 수정(review-verify-agent Major 확인, 웹 프리뷰 Finding 1과 동일한 함정)</b>: 펜 아이콘을 TMP의 특정 글자(caret) 위치에 맞춰 따라가게 구현하면, 실제 퀘스트 텍스트 길이·폰트·해상도에 따라 줄바꿈이 달라질 때 마지막 줄이 아닌 중간 줄에서 궤적이 어긋날 수 있다 — 웹 프리뷰와 동일하게 <b>펜은 특정 글자가 아니라 텍스트 블록 전체의 하단 진행 기준선(RectTransform 하단에 고정된 가로 트랙)을 따라가도록</b> 구현할 것. TMP의 <code>textInfo.lineCount</code>로 캐릭터 단위 위치를 따라가려는 시도는 하지 않는다(웹 프리뷰의 <code>.qw-pen</code>이 문단 하단에 고정된 것과 동일한 이유).
+        <br><br><b>2026-09-08 구현 완료(DEC-127)</b>: 위 지침대로 <code>unity/Assets/Scripts/UI/QuillRevealText.cs</code>를 신규 작성 — <code>text.rectTransform.rect.width</code>를 트랙 폭으로 삼아 펜 아이콘(<code>RectTransform</code>, 하단 고정)을 진행률에 비례해 이동시킨다. 전용 <code>QuestPanel</code>이 아직 없어 <code>ResultPanelController</code>의 승리/패배 서술 텍스트(<code>descriptionQuill</code> 필드)에 적용했다. 펜촉은 신규 이미지 없이 <code>AssetDatabase.GetBuiltinExtraResource&lt;Sprite&gt;("UI/Skin/Knob.psd")</code>를 잉크브라운(<code>UIColors.QuillInk</code>)으로 물들여 근사했다. 씬 배선은 <code>ProjectSetupTool.BuildResultPanel()</code>에서 코드로 생성한다.</td></tr>
+      <tr><td>잉크마크 선택 효과 (C-04/C-05 확장, DEC-118 — 2026-09-08 구현 추가)</td><td>이 표에는 원래 항목이 없었으나(작업 지시서가 "이 문서가 제안하는 대체 방식"을 찾으라 했지만 실제로는 누락돼 있었음) DEC-127에서 직접 정했다: 별도 프리팹 없이 <code>InkMarkOverlay</code> 컴포넌트(<code>unity/Assets/Scripts/UI/InkMarkOverlay.cs</code>) — 새 이미지 에셋을 추가하지 않기 위해 <code>AssetDatabase.GetBuiltinExtraResource&lt;Sprite&gt;("UI/Skin/Knob.psd")</code>(Unity 에디터 내장 원형 스프라이트)를 진남색(<code>UIColors.InkMark</code>, #2b3f7a)으로 물들이고, <code>Image.type=Filled</code>/<code>fillMethod=Radial360</code>의 <code>fillAmount</code>를 0→1로 코루틴 애니메이션해 "원을 그리는" 손맛만 근사한다(완전히 동일한 SVG stroke-dashoffset draw-in은 재현하지 않음). 그려진 뒤에는 원본 CSS <code>.ink-fill</code> 최종 opacity(.16)와 동일한 값으로 알파를 낮춰 잉크 번짐을 표현한다. <code>ClassSelectPanelController</code>의 직업 카드 3장에 적용(<code>ClassSelectPanelController.ClassCard.inkMarkOverlay</code>, <code>UpdateSelectionVisual()</code>이 선택된 카드에 <code>Show()</code>·나머지에 <code>Hide()</code> 호출). 씬 배선은 <code>ProjectSetupTool.BuildInkMarkOverlay()</code>에서 코드로 생성한다.</td></tr>
+      <tr><td>모서리 필리그리 장식 (C-00 확장, DEC-120 — <span class="tag">DEC-127 미착수</span>)</td><td><b>2026-09-08 보류(DEC-127)</b>: 원본은 SVG data URI로 그린 소용돌이 덩굴무늬(<code>--orn-filigree</code>)라 벡터 곡선이 핵심인데, 이번 환경에서 새 이미지 에셋을 생성할 수 없어 Unity 기본 도형만으로는 "덩굴무늬"로 보이기 어렵다고 판단해 이번 라운드에서는 적용하지 않았다(잉크마크·깃펜 두 우선순위를 확실히 하는 데 시간을 쓰기로 결정, 과설계 금지 원칙). 재개 시 후보: (a) <code>art-assets/</code> 재질 텍스처 중 모서리 장식으로 쓸 수 있는 부분 검토, (b) 사용자가 실제 필리그리 스프라이트를 제작해 업로드(OQ-104/DEC-112와 동일 패턴) 후 9-slice 아닌 코너 앵커 <code>Image</code> 4개(<code>anchorMin/anchorMax</code>를 각 코너에 고정)로 배치.</td></tr>
+    </table></div>
+  </section>
+
+  <section id="m3" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">M-03</span><span class="sec-t">화면 → 씬 / UI 패널</span><span class="tag">02_ui_flow.md SCR-001~008</span></div>
+    <div class="note">단일 씬 + Canvas 하위 패널 전환 방식을 권장(콘솔 버전처럼 상태 하나로 화면을 관리하는 구조와 가장 가까움). 씬을 화면마다 나누는 방식은 로딩 전환이 생겨 REQ-NF-104(전환 1초 이내)와 어긋날 수 있음.</div>
+    <div class="tblwrap"><table>
+      <tr><th>SCR</th><th>Unity 패널(안)</th></tr>
+      <tr><td>SCR-001 타이틀</td><td><code>TitlePanel</code></td></tr>
+      <tr><td>SCR-002 직업 선택</td><td><code>ClassSelectPanel</code></td></tr>
+      <tr><td>SCR-003 탐색</td><td><code>ExplorePanel</code> (+ 인벤토리/퀘스트는 자식 오버레이)</td></tr>
+      <tr><td>SCR-004 전투</td><td><code>BattlePanel</code></td></tr>
+      <tr><td>SCR-007/008 게임오버/승리</td><td><code>ResultPanel</code>(승패 데이터만 다르게 바인딩)</td></tr>
+    </table></div>
+  </section>
+
+  <section id="m4" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">M-04</span><span class="sec-t">상태 머신 → C#</span><span class="tag">05_state_machine.md STATE-101~103</span></div>
+    <div class="note">
+      <code>GameState</code>·<code>BattleResult</code>·<code>QuestStatus</code> enum은 콘솔 C++ 버전의 이름·값을 그대로 C#으로 포팅한다(리스크: 06_open_questions.md — 수동 포팅 시 수치·확률 오차 위험, 회귀 테스트로 완화).
+      C# 쪽 로직 클래스(<code>GameController</code>, <code>BattleController</code> 등)는 View(패널)와 분리해, Unity UI를 나중에 바꾸더라도 로직이 흔들리지 않게 한다.
+    </div>
+  </section>
+
+  <section id="m5" class="sec card pad">
+    <div class="sec-h"><span class="sec-num">M-05</span><span class="sec-t">저장 데이터</span><span class="tag">04_data_model.md</span></div>
+    <div class="note">
+      <code>Application.persistentDataPath/save1.json</code>에 <code>JsonUtility</code>(또는 Newtonsoft.Json)로 직렬화.
+      필드는 콘솔 버전 <code>saves/save1.txt</code>(<code>version=2</code>, architecture-audit 2026-09-04 수정분 포함)와 1:1 대응 + <code>class_id</code> 추가.
+    </div>
+  </section>
+
+  <section id="conflict" class="sec">
+    <div class="sec-h"><span class="sec-num">✕</span><span class="sec-t">Conflict List — 아직 결정되지 않은 것</span><span class="tag">06_open_questions.md</span></div>
+    <div class="tblwrap"><table>
+      <tr><th>ID</th><th>내용</th><th>이 문서에 미치는 영향</th><th>결정 상태</th></tr>
+      <tr><td class="mono">OQ-101</td><td>Unity 정확한 버전, uGUI vs UI Toolkit</td><td>M-02 프리팹 구조가 uGUI 기준(Toggle/Slider) 그대로 확정됨</td><td><span class="badge" style="background:var(--ds-st-done-bg);color:var(--ds-st-done-fg)">해결(DEC-119)</span></td></tr>
+      <tr><td class="mono">OQ-102</td><td>새 게임 시 기존 세이브 덮어쓰기 확인 모달 여부</td><td>patterns.html §접근성의 파괴적 행동 패턴 적용 여부가 갈림</td><td><span class="badge" style="background:var(--ds-st-idle-bg);color:var(--ds-st-idle-fg)">미결정</span></td></tr>
+      <tr><td class="mono">OQ-103</td><td>직업 2개 vs 3개, 정확한 이름·수치</td><td>wireframes.html S-002의 전사/도적/마법사 3장 값(HP·ATK·DEF·시작 아이템)을 Unity C# 포팅(CharacterClassDatabase.cs)에 그대로 반영함 — 시작 아이템 가격/설명 등 세부 수치는 원본 C++에 없던 신규 값이라 계속 조정 가능</td><td><span class="badge" style="background:var(--ds-st-busy-bg);color:var(--ds-st-busy-fg)">잠정 확정(DEC-111)</span></td></tr>
+      <tr><td class="mono">OQ-104</td><td>초상화·배경 아트 확보 방법</td><td>모든 초상화 컴포넌트가 현재 아이콘 플레이스홀더 — 실제 아트로 교체 전제</td><td><span class="badge" style="background:var(--ds-st-idle-bg);color:var(--ds-st-idle-fg)">미결정</span></td></tr>
+    </table></div>
+  </section>
+
+  <footer class="ds">이전 <a href="patterns.html">3 · 상태 패턴 · 접근성</a> · 다음 → <a href="wireframes.html">5 · 화면 · 와이어프레임</a></footer>
+</div>
+
+<script src="ds.js"></script>
+</body>
+</html>
