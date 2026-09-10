@@ -81,3 +81,10 @@ ai_service/.venv/
 ai_service/.env
 ai_service/__pycache__/
 ai_service/**/__pycache__/
+
+# Unity 배치모드 테스트 실행 산출물 (커밋 금지, DEC-133/DEC-142)
+scratch_*results*.xml
+*playmode*results*.xml
+*editmode*results*.xml
+verify_playmode*.xml
+verify_editmode*.xml

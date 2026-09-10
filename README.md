@@ -118,6 +118,25 @@ textRPG/
 └── system_design.md
 ```
 
+## 개발 환경 설정
+
+이 저장소는 [pre-commit](https://pre-commit.com)으로 커밋 전 검증 훅을 강제합니다. 클론 후 한 번만 아래를 실행하면 활성화됩니다.
+
+```bash
+pip3 install --user pre-commit   # 또는: pipx install pre-commit
+pre-commit install
+```
+
+훅이 막는 것:
+
+* 머지 충돌 마커(`<<<<<<<`/`=======`/`>>>>>>>`)가 남은 채 커밋되는 것
+* 대용량 파일 실수 추가(3MB 초과, 아트 에셋 경로는 예외)
+* 대소문자만 다른 파일명 충돌, 개인키 파일 커밋
+* Unity PlayMode/EditMode 테스트 실행 결과 XML(`scratch_*results*.xml`, `*playmode*results*.xml`, `*editmode*results*.xml`, `verify_playmode*.xml`, `verify_editmode*.xml`)이나 임시 검증 스크립트 산출물의 실수 커밋(DEC-133/DEC-142 사고 재발 방지 — 이런 파일은 `.gitignore`에도 등록돼 있어 기본적으로 `git add`에도 잡히지 않지만, `-f`로 강제 추가된 경우까지 이중으로 차단합니다)
+* 후행 공백, 파일 끝 개행 누락, 혼용 줄바꿈(단, Unity가 자동 생성/재생성하는 `.meta`/`.asset`/`.unity`/`TextMesh Pro` 하위 파일과 `ProjectSettings/`, `Library/`, 아트 PNG는 검사 대상에서 제외)
+
+`.pre-commit-config.yaml` 전체 훅 목록과 제외 규칙은 저장소 루트의 해당 파일을 참고하세요.
+
 ## 학습 포인트
 
 * 조건문과 반복문을 이용한 선택지 처리
