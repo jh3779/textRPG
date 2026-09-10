@@ -58,6 +58,23 @@ namespace TextRPG.EditorTools
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
+            // ---- QACaptureCamera (DEC-144) ----
+            // 이 씬은 순수 Screen Space Overlay Canvas 구조라 원래 Camera가 필요 없지만,
+            // `unity` CLI/MCP의 capture_game_view(source=screen)가 씬에 Camera가 하나도
+            // 없으면 solid cyan만 캡처하는 제약이 있어(실험 브랜치 experiment/unity-claude-mcp
+            // 에서 확인) 상시 QA 스크린샷용으로 카메라를 하나 영구 배치한다. cullingMask=Nothing
+            // 이라 3D 오브젝트를 전혀 렌더링하지 않고, Overlay Canvas는 카메라 유무와 무관하게
+            // 항상 화면 전체를 덮으므로(CreateFullStretch로 만든 각 패널 루트가 앵커
+            // (0,0)-(1,1) 풀스트레치) 이 카메라의 배경색이 실제로 비칠 일은 없다 — 다만 만에
+            // 하나 여백이 생기더라도 이질감이 없도록 배경색을 UIColors.Surface와 동일하게
+            // 맞춰둔다.
+            var qaCameraGO = new GameObject("QACaptureCamera", typeof(Camera));
+            var qaCamera = qaCameraGO.GetComponent<Camera>();
+            qaCamera.clearFlags = CameraClearFlags.SolidColor;
+            qaCamera.backgroundColor = UIColors.Surface;
+            qaCamera.cullingMask = 0; // Nothing
+            qaCamera.depth = -100;
+
             // ---- EventSystem ----
             var eventSystemGO = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
 
