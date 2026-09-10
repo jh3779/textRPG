@@ -33,3 +33,7 @@
 sysinfo.txt
 crashlytics-build.properties
 Assets/AssetStoreTools*
+
+# DEC-144: `unity` CLI/MCP capture_game_view 임시 QA 스크린샷 저장 폴더.
+# 캡처 결과는 확인용 산출물이라 커밋하지 않는다 — docs/08_visual_qa_screenshot.md 참고.
+Assets/_qa_captures/
