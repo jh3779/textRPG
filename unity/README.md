@@ -12,7 +12,8 @@ Unity Hub에서 이 `unity/` 폴더를 프로젝트로 열면 된다. 실제로 
 `docs/06_open_questions.md` DEC-119 참조). UI 시스템은 **uGUI**로 확정(OQ-101 해결).
 
 메인 씬: `Assets/Scenes/Main.unity`. Play 버튼을 누르면 타이틀 → 직업 선택 →
-탐색(+ 인라인 전투) → 결과 화면까지 이어지는 최소 골격이 동작한다.
+탐색(대립구도 전투 + 던전 보드맵 포함) → 결과 화면까지 전체 플로우가 동작한다.
+자세한 현재 상태는 아래 "현재 상태" 절 참고.
 
 ## 폴더 구조
 
@@ -26,17 +27,33 @@ Assets/
     ProjectSetupTool.cs      씬/프리팹을 코드로 조립하는 1회성 빌드 스크립트.
                              (재실행하면 Main.unity를 덮어쓰고 다시 생성함 — 수동으로
                              씬을 고친 뒤 재실행하면 그 수정 사항은 사라짐)
-    RegressionSmokeTest.cs   포팅 수치 회귀 스모크 테스트(-executeMethod로 실행 가능).
-  Art/             art-assets/에서 복사해온 확정 MVP 아트(원본은 저장소 루트 art-assets/).
+    RegressionSmokeTest.cs   포팅 수치 회귀 스모크 테스트(-executeMethod로 실행 가능,
+                             이름과 달리 Unity Test Framework EditMode가 아니라
+                             커스텀 러너다 — 아래 "테스트 실행" 참고).
+    BuildTool.cs             macOS 스탠드얼론 빌드(DEC-130).
+  Tests/PlayMode/  진짜 Unity Test Framework PlayMode 테스트(DEC-126, 20개).
+  Art/             art-assets/에서 복사해온 확정 아트(원본은 저장소 루트 art-assets/).
+    Shaders/       커스텀 UI 셰이더(포트레이트 가장자리 마스킹 등, DEC-116/137).
   Scenes/Main.unity
 ```
 
-## 회귀 테스트 실행 (CLI)
+## 테스트 실행 (CLI)
 
+두 가지 테스트가 서로 다르다 — 헷갈리기 쉬우니 구분해서 실행한다.
+
+**① 회귀 스모크 테스트(45개, 커스텀 러너 — `-executeMethod`)**:
 ```
 Unity -batchmode -nographics -projectPath . \
   -executeMethod TextRPG.EditorTools.RegressionSmokeTest.RunAll -quit
 ```
+
+**② 진짜 Unity Test Framework PlayMode 테스트(20개, DEC-126)**:
+```
+Unity -batchmode -nographics -projectPath . \
+  -runTests -testPlatform PlayMode -testResults <출력경로>.xml
+```
+`-runTests`와 `-quit`을 **절대 같이 쓰지 않는다** — 같이 쓰면 캐시된 이전 결과가
+그대로 XML에 찍히는 경쟁 조건이 실제로 재현된 적이 있다(DEC-140 리뷰 참고).
 
 ## macOS 빌드 방법 (DEC-130)
 
@@ -67,33 +84,39 @@ CLI(배치모드)에서:
 한 번 실행하면 그 이후로는 정상적으로 더블클릭 실행이 된다(코드 서명/공증은
 하지 않음 — Apple Developer 계정 불필요한 로컬 QA 용도이므로 범위 밖).
 
-**실행 확인 시 참고 — TMP 텍스트 미렌더링 버그(확정)**: Player 로그는
-`~/Library/Logs/textRPG Project/DungeonGate/Player.log`에 남는다. `Main.unity`의
-TMP 컴포넌트 **29개 전부** `m_fontAsset: {fileID: 0}`(미할당) 상태이고, 프로젝트
-어디에도 `TMP Settings.asset`이 없다(`find`로 전체 검색 확인). 그 결과 앱 실행 시
-Player.log에 `TMP_Settings.get_defaultFontAsset()` 발 `NullReferenceException`이
-**25회** 재현됨을 확인했다 — 가능성이 아니라 확정된 버그다. 앱 자체는 크래시하지
-않지만 화면의 모든 TMP 텍스트가 렌더링되지 않을 것으로 확정적으로 예상된다.
-다음 작업으로 TMP Settings 에셋 생성 + 각 TMP 컴포넌트에 폰트 할당이 필요하다
-(아래 "알려진 미완성 / 다음 작업" 목록 최우선 항목 참조).
+**실행 로그**: Player 로그는
+`~/Library/Logs/textRPG Project/DungeonGate/Player.log`에 남는다.
 
-## 알려진 미완성 / 다음 작업
+## 현재 상태 (2026-09-10, DEC-144 기준)
 
-- **[최우선] TMP 텍스트 미렌더링 버그(DEC-130에서 확정)**: `Main.unity`의 TMP
-  컴포넌트 29개 전부 폰트 애셋이 미할당(`m_fontAsset: {fileID: 0}`)이고 프로젝트에
-  `TMP Settings.asset`도 없다 — Player.log에 `TMP_Settings.get_defaultFontAsset()`
-  `NullReferenceException`이 25회 재현되는 것으로 확정 확인했다. 화면의 모든 TMP
-  텍스트가 안 보일 것으로 예상된다. TMP Settings 에셋 생성 + 각 컴포넌트 폰트
-  할당이 다음 작업으로 필요하다.
-- BattlePanel 전용 비주얼(VersusStage, 좌우 대립 구도 아트, C-11)은 만들지 않았다 —
-  현재는 ExplorePanel 안에서 텍스트/버튼만 바뀌는 방식으로 전투를 처리한다.
-- 던전 보드 타일 맵(C-06, DEC-110의 타일 클릭 이동)은 만들지 않았다 — 지금은
-  카드형 텍스트 버튼만 있다.
-- M-01(디자인 토큰 → `UITheme.asset` ScriptableObject)은 정적 색상 상수
-  (`Scripts/UI/UIColors.cs`)로만 축소 구현했다 — 실제 ScriptableObject 에셋 승격은
-  Unity Editor에서 사람이 직접 만드는 것을 권장(배치 스크립트로 안전하게 생성하기
-  까다로움).
-- 양피지 9-slice, 잉크 마크 선택 애니메이션(DEC-118), 배경 마스킹 디테일 등 고급
-  비주얼 폴리시는 스코프 밖(요청서 "하지 말 것" 참조).
-- 정식 Unity Test Framework(EditMode/PlayMode 테스트 어셈블리)로 승격하지 않고
-  `-executeMethod`로 실행하는 간이 스크립트로만 회귀 테스트를 작성했다.
+타이틀 → 직업 선택 → 탐색(대립구도 전투 포함) → 결과 화면까지 전체 플로우가
+실제로 동작하고, 아래는 전부 구현 완료 상태다(예전엔 이 섹션이 "미완성" 목록
+이었는데, 여러 라운드에 걸쳐 다 해결돼서 지금은 "완료" 목록으로 바꿨다 — 옛
+기록은 `docs/06_open_questions.md`의 DEC-131/132/139 등 참고):
+
+- 한글 TMP 폰트 렌더링(DEC-131, DynamicOS 모드로 시스템 폰트 fallback)
+- 전투 대립구도(플레이어 vs 몬스터, DEC-132) + 피격 플래시·데미지 팝업(DEC-133)
+- 던전 보드맵(카드 버튼이 아니라 실제 노드/경로 시각화, DEC-139)
+- 디자인 토큰의 `UITheme.asset` ScriptableObject 승격(DEC-128)
+- 잉크마크 선택 효과(DEC-127) — 단, 직업 선택 화면만 DEC-140에서 "카드 상단 핀"
+  방식으로 대체(잉크마크 자체는 다른 화면 재적용 가능성 남겨두고 컴포넌트 보존)
+- 정식 Unity Test Framework PlayMode 테스트(DEC-126, 20개, 위 "테스트 실행" 참고)
+- macOS 스탠드얼론 빌드(DEC-130), GitHub Actions CI(C++ 코어 + pre-commit, DEC-143)
+- Unity 공식 MCP 라이브 에디터 제어 + 스크린샷 캡처(DEC-144, `docs/08_visual_qa_screenshot.md`)
+
+## 알려진 미완성 / 제약 (2026-09-10 기준 실제로 남은 것)
+
+- **선택 핀이 캐릭터 초상화와 겹쳐 보이는 문제(DEC-140 후속, 미수정)**: 직업
+  선택 카드의 핀은 "카드 사각형(rect)" 기준으로는 6px 여백을 두고 배치돼
+  좌표 계산상 안전하지만, 캐릭터 삽화 자체가 카드 rect보다 위로 튀어나와
+  있어서(DEC-141 신규 아트) 실제 렌더링 결과는 핀이 캐릭터 머리 위에 겹쳐
+  보인다. DEC-144에서 확보한 라이브 스크린샷 캡처로 처음 발견됐고, 아직
+  고치지 않았다.
+- **가장자리 마스킹 셰이더와 신규 캐릭터 아트의 상호작용 미확인(DEC-141)**:
+  검·지팡이 등 돌출부가 마스크 블롭 밖으로 나가 페이드/클리핑될 가능성이
+  코드 분석으로는 있다고 판단됐지만, 실제 렌더링으로 확정 확인은 안 됐다.
+- 깃펜 필기 VFX 프레임(`vfx_quill_*.png`) 6장에 체스보드 알파 잔재가 남아있음
+  (DEC-135 확정, DEC-136에서 고치려다 실루엣이 더 망가져서 되돌림 — 알려진
+  한계로 수용, `art-assets/README.md` 참고).
+- OQ-105/106(AI 아트 자동 생성 파이프라인)은 계속 보류 — 지금은 수동 업로드
+  방식으로 우회 중.
