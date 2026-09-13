@@ -12,8 +12,10 @@
  * (수동으로 씬을 고친 뒤 이 스크립트를 다시 돌리면 그 수정 사항은 사라지니 주의).
  */
 
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using TextRPG.GameLogic;
 using TextRPG.UI;
 using TMPro;
@@ -146,6 +148,13 @@ namespace TextRPG.EditorTools
             CreateText("Subtitle", card, "textRPG 콘솔판을 그대로 옮긴 다크 판타지 던전 TRPG",
                 18, new Color32(0x5B, 0x4E, 0x33, 0xFF), TextAlignmentOptions.Center,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(440, 60), new Vector2(0, -150));
+
+            // DEC-145 신규(레이어드 깃펜 자산 실연결): Subtitle 하단(절대 y=140)과 NewGameButton
+            // 상단(절대 y=38) 사이에 비어 있던 102유닛 구간에 배치한다(다른 요소와 겹치지 않는
+            // 유일한 여유 공간 — 계산 근거는 최종 보고 참조). 기존 DUNGEON GATE 영문 로고
+            // 텍스트(위 CreateText("Title", ...))는 그대로 두고, 확정된 한글 카피 "던전게이트"를
+            // 깃펜이 직접 쓰는 연출을 별도 장식으로 추가하는 방식을 택했다(기존 요소 대체 아님).
+            BuildQuillTitleWriter(card);
 
             var newGameBtn = CreateButton("NewGameButton", card, "새 게임", UIColors.Primary, Color.black,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(320, 56), new Vector2(0, 10));
@@ -916,6 +925,186 @@ namespace TextRPG.EditorTools
             img.color = c;
             img.raycastTarget = false;
             rt.SetAsFirstSibling();
+        }
+
+        /// <summary>
+        /// 신규(DEC-145): writing_path.json 같은 TextAsset(.json)을 LoadSprite/LoadTexture와
+        /// 동일한 "파일명으로 Art 폴더 전체를 재귀 검색" 패턴으로 찾는다.
+        /// </summary>
+        private static TextAsset LoadTextAsset(string fileNameWithoutExtension)
+        {
+            var guids = AssetDatabase.FindAssets($"{fileNameWithoutExtension} t:TextAsset", new[] { ArtRoot });
+            foreach (var guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (Path.GetFileNameWithoutExtension(path) == fileNameWithoutExtension)
+                {
+                    return AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 리뷰 반영(2026-09-14, review-verify-agent Major 확정): quill_base.png/quill_shadow.png의
+        /// RectTransform.pivot을 기본값 (0.5,0.5)로 두면, UGUI Image가 .png.meta에 구워둔 커스텀
+        /// spritePivot(펜촉 접점)을 무시하고 사각형 기하학적 중심을 기준으로 이동·회전시킨다 —
+        /// QuillPageWriter.cs가 anchoredPosition/rotation을 펜촉 접점 기준으로 계산해도 실제로는
+        /// 그림 중심이 그 좌표로 이동하는 셈이라 약 26.5유닛 어긋난다.
+        ///
+        /// 이 피벗 값의 유일한 출처는 Assets/Art/UI/Quill/quill_pivot_meta.json이다(.png.meta의
+        /// spritePivot도 이 JSON의 nib_contact_px/canvas로부터 계산되어 구워진 값과 일치함 —
+        /// 191/1024=0.1865, 1-1006/1024=0.0176). 좌표를 이 코드에 다시 하드코딩하면 나중에 JSON과
+        /// .meta 둘 중 하나만 갱신됐을 때 또 어긋날 수 있으므로, 여기서는 JSON 원문을 직접 읽어
+        /// 계산한다. quill_pivot_meta.json 최상위 구조가 "_pivots" 아래 딕셔너리라 JsonUtility로는
+        /// 못 읽으므로(딕셔너리 미지원), 이 특정 메타 파일 전용 최소 정규식 추출기를 쓴다 — 범용
+        /// JSON 파서가 아니다.
+        /// </summary>
+        private static Vector2 LoadPivot01FromMeta(string spriteKey, string pxFieldName)
+        {
+            var fallback = new Vector2(0.5f, 0.5f);
+
+            var json = LoadTextAsset("quill_pivot_meta");
+            if (json == null)
+            {
+                Debug.LogError("[ProjectSetupTool] quill_pivot_meta.json을 찾을 수 없습니다 — " +
+                    $"\"{spriteKey}\" 피벗을 기본값(0.5,0.5)으로 둡니다.");
+                return fallback;
+            }
+
+            string text = json.text;
+
+            // quill_pivot_meta.json에는 "quill_base.png" 같은 파일명 키가 "_sources"(라이선스/출처
+            // 기록, canvas/nib_contact_px 없음) 섹션에도 나온다 — 스코프를 주지 않고 첫 매치를
+            // 그대로 쓰면 그 무관한 블록을 잘못 집어 canvas/px 파싱이 실패하고 fallback(0.5,0.5)로
+            // 조용히 새 버그를 만든다(실제로 최초 구현에서 이 문제로 걸림 — 라이브 검증 중 발견).
+            // 반드시 "_pivots" 섹션 이후 텍스트로 범위를 좁혀서 검색한다.
+            int pivotsSectionStart = text.IndexOf("\"_pivots\"");
+            if (pivotsSectionStart < 0)
+            {
+                Debug.LogError("[ProjectSetupTool] quill_pivot_meta.json에서 \"_pivots\" 섹션을 찾을 수 없습니다 — " +
+                    $"\"{spriteKey}\" 피벗을 기본값(0.5,0.5)으로 둡니다.");
+                return fallback;
+            }
+            string pivotsSection = text.Substring(pivotsSectionStart);
+
+            var blockMatch = Regex.Match(pivotsSection, $"\"{Regex.Escape(spriteKey)}\"\\s*:\\s*\\{{(?<body>.*?)\\}}", RegexOptions.Singleline);
+            if (!blockMatch.Success)
+            {
+                Debug.LogError($"[ProjectSetupTool] quill_pivot_meta.json의 \"_pivots\" 섹션에서 \"{spriteKey}\" 항목을 찾을 수 없습니다 — " +
+                    "피벗을 기본값(0.5,0.5)으로 둡니다.");
+                return fallback;
+            }
+            string body = blockMatch.Groups["body"].Value;
+
+            var canvasMatch = Regex.Match(body, "\"canvas\"\\s*:\\s*\\[\\s*([\\d.]+)\\s*,\\s*([\\d.]+)");
+            var pxMatch = Regex.Match(body, $"\"{Regex.Escape(pxFieldName)}\"\\s*:\\s*\\[\\s*([\\d.]+)\\s*,\\s*([\\d.]+)");
+            if (!canvasMatch.Success || !pxMatch.Success)
+            {
+                Debug.LogError($"[ProjectSetupTool] \"{spriteKey}\"의 canvas/{pxFieldName} 필드를 파싱하지 못했습니다 — " +
+                    "피벗을 기본값(0.5,0.5)으로 둡니다.");
+                return fallback;
+            }
+
+            float canvasW = float.Parse(canvasMatch.Groups[1].Value, CultureInfo.InvariantCulture);
+            float canvasH = float.Parse(canvasMatch.Groups[2].Value, CultureInfo.InvariantCulture);
+            float px = float.Parse(pxMatch.Groups[1].Value, CultureInfo.InvariantCulture);
+            float py = float.Parse(pxMatch.Groups[2].Value, CultureInfo.InvariantCulture);
+
+            // 이미지 좌표계(좌상단 원점, y 아래로 증가) → spritePivot/RectTransform.pivot 좌표계
+            // (좌하단 원점, y 위로 증가)로 변환 — TextureImporter가 spritePivot을 굽는 것과 동일한 공식.
+            return new Vector2(px / canvasW, 1f - py / canvasH);
+        }
+
+        /// <summary>
+        /// 신규(DEC-145): docs/quill_animation_image_list.md 4.2절 합성 순서(양피지 → 누적 잉크 →
+        /// 깃펜 그림자 → 접점 효과 → 깃펜)를 형제 오브젝트 순서 그대로 구현한다. 실제 애니메이션
+        /// 로직(경로 재생, 도장 누적, 최종 마스크 크로스페이드)은 전부 QuillPageWriter가 런타임에
+        /// 담당하고, 여기서는 레이어 뼈대와 참조 배선만 만든다. FinalMask의 실제 크기/위치는
+        /// QuillPageWriter.PositionFinalMask()가 재생 시작 시 다시 계산해 덮어쓰므로 여기 sizeDelta는
+        /// 자리표시자일 뿐이다.
+        /// </summary>
+        private static void BuildQuillTitleWriter(RectTransform card)
+        {
+            var root = CreateAnchored("QuillTitleWriter", card, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(420, 90), new Vector2(0, 89));
+
+            var parchment = CreateFullStretch("Parchment", root);
+            var parchmentImg = parchment.gameObject.AddComponent<Image>();
+            parchmentImg.sprite = LoadSprite("parchment_clean");
+            parchmentImg.preserveAspect = false;
+            parchmentImg.color = new Color(1f, 1f, 1f, 0.9f);
+            parchmentImg.raycastTarget = false;
+
+            var bleedLayer = CreateAnchored("BleedLayer", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, Vector2.zero);
+            var inkLayer = CreateAnchored("InkLayer", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, Vector2.zero);
+
+            var finalMaskRT = CreateAnchored("FinalMask", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(10, 10), Vector2.zero);
+            var finalMaskImg = finalMaskRT.gameObject.AddComponent<Image>();
+            finalMaskImg.sprite = LoadSprite("writing_final_mask");
+            finalMaskImg.color = new Color(0f, 0f, 0f, 0f); // 검정 틴트 — 알파는 재생 중 크로스페이드로 갱신
+            finalMaskImg.preserveAspect = false;
+            finalMaskImg.raycastTarget = false;
+
+            var penGroupRT = CreateAnchored("PenGroup", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, Vector2.zero);
+            var penGroup = penGroupRT.gameObject.AddComponent<CanvasGroup>();
+
+            var shadowRT = CreateAnchored("QuillShadow", penGroupRT, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(46, 46), Vector2.zero);
+            // 리뷰 반영: quill_shadow.png.meta의 커스텀 spritePivot(펜촉 접점)을 UGUI Image가
+            // 무시하므로, RectTransform.pivot 자체를 동일 값으로 명시한다(quill_pivot_meta.json 단일 출처).
+            shadowRT.pivot = LoadPivot01FromMeta("quill_shadow.png", "nib_contact_px");
+            var shadowImg = shadowRT.gameObject.AddComponent<Image>();
+            shadowImg.sprite = LoadSprite("quill_shadow");
+            shadowImg.preserveAspect = true;
+            shadowImg.raycastTarget = false;
+            var shadowColor = shadowImg.color;
+            shadowColor.a = 0.3f;
+            shadowImg.color = shadowColor;
+
+            var nibRT = CreateAnchored("NibContact", penGroupRT, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(8, 8), Vector2.zero);
+            // nib_contact.png는 canvas 중앙(64,64/128x128)이 접점이라 계산 결과는 기본값(0.5,0.5)과
+            // 같지만, 우연히 같은 게 아니라 JSON을 출처로 명시적으로 맞춰둔다(나중에 스탬프 이미지가
+            // 바뀌어도 이 줄만으로 항상 정합).
+            nibRT.pivot = LoadPivot01FromMeta("nib_contact.png", "contact_px");
+            var nibImg = nibRT.gameObject.AddComponent<Image>();
+            nibImg.sprite = LoadSprite("nib_contact");
+            nibImg.preserveAspect = true;
+            nibImg.raycastTarget = false;
+            nibRT.gameObject.SetActive(false); // pen_down 구간에서만 QuillPageWriter가 켠다
+
+            var penRT = CreateAnchored("QuillPen", penGroupRT, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(46, 46), Vector2.zero);
+            // 리뷰 반영: quill_base.png.meta의 커스텀 spritePivot(펜촉 접점, (0.1865, 0.0176))과
+            // 동일한 값을 RectTransform.pivot에도 명시해야 QuillPageWriter.cs가 계산한
+            // anchoredPosition/rotation이 실제로 펜촉을 기준으로 적용된다.
+            penRT.pivot = LoadPivot01FromMeta("quill_base.png", "nib_contact_px");
+            var penImg = penRT.gameObject.AddComponent<Image>();
+            penImg.sprite = LoadSprite("quill_base");
+            penImg.preserveAspect = true;
+            penImg.raycastTarget = false;
+
+            var writer = root.gameObject.AddComponent<QuillPageWriter>();
+            BindSerialized(writer,
+                ("writingPathJson", LoadTextAsset("writing_path")),
+                ("pageArea", root),
+                ("bleedLayer", bleedLayer),
+                ("inkLayer", inkLayer),
+                ("finalMaskImage", finalMaskImg),
+                ("penGroup", penGroup),
+                ("quillShadow", shadowRT),
+                ("quillShadowImage", shadowImg),
+                ("nibContact", nibRT),
+                ("quillPen", penRT),
+                ("inkBrushThin", LoadSprite("ink_brush_thin")),
+                ("inkBrushMedium", LoadSprite("ink_brush_medium")),
+                ("inkBrushDry", LoadSprite("ink_brush_dry")),
+                ("inkBleedMaskSprite", LoadSprite("ink_bleed_mask")));
         }
 
         private static Sprite LoadSprite(string fileNameWithoutExtension)

@@ -2,7 +2,7 @@
  "_meta": {
   "coordinate_space": "pixels, same 2048x1024 space as writing_final_mask.png",
   "text": "던전게이트",
-  "text_status": "PLACEHOLDER - final copy not confirmed, see report",
+  "text_status": "CONFIRMED - 2026-09-13 사용자 확정",
   "generation": "single serpentine raster scan over the whole mask; pen lifts whenever the next raster point is farther than JUMP_THRESH=26px away. NOT real Hangul stroke order.",
   "fields": [
    "time",

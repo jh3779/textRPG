@@ -29,8 +29,8 @@
   "_writing_final_mask_text_status": {
     "file": "writing_final_mask.png",
     "text": "던전게이트",
-    "text_status": "PLACEHOLDER - final copy not confirmed",
-    "note": "이 텍스트는 임시 대체 문구이며 최종 확정된 카피가 아니다. 실제 출시 텍스트로 교체 필요. (동일 경고가 writing_path.json의 _meta.text_status에도 기록되어 있음 - 어느 메타파일을 보더라도 놓치지 않도록 중복 기록)"
+    "text_status": "CONFIRMED - 2026-09-13 사용자 확정",
+    "note": "이 텍스트(\"던전게이트\")는 2026-09-13 사용자가 최종 확정한 카피다. 더 이상 임시 대체 문구가 아니다. (동일 갱신이 writing_path.json의 _meta.text_status에도 반영되어 있음 - 어느 메타파일을 보더라도 놓치지 않도록 중복 기록)"
   },
   "_pivots": {
     "quill_base.png": {
