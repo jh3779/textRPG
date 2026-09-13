@@ -15,6 +15,16 @@
 * 게임 오버 및 던전 클리어 엔딩
 * (선택) AI 던전마스터: 위치/전투/승패 서술을 로컬 AI 서비스로 매번 다르게 생성
 
+## Unity 리디자인 버전 (DungeonGate)
+
+이 콘솔 버전과 **병행 개발**(DEC-109, 콘솔 버전은 수정하지 않음)로, `unity/`
+폴더에 같은 게임 로직을 Unity(uGUI)로 포팅하고 다크 판타지 태블탑 디자인
+시스템("Gilded Dungeon")을 입힌 버전이 있습니다 — 직업 선택, 대립구도 전투,
+던전 보드맵, 세이브/로드까지 전체 플로우가 동작하는 별도 실행 파일입니다.
+열기/빌드/테스트 방법과 현재 상태는 [`unity/README.md`](unity/README.md),
+전체 설계 결정 이력은 [`docs/06_open_questions.md`](docs/06_open_questions.md)를
+참고하세요.
+
 ## 실행 방법
 
 ### CMake 사용
@@ -111,11 +121,16 @@ textRPG/
 │   ├── Player.cpp
 │   ├── Quest.cpp
 │   └── Utils.cpp
+├── java/
+│   └── TextRPGGui.java    # Java Swing GUI 버전
 ├── ai_service/            # 선택 기능: AI 던전마스터 (FastAPI)
 ├── data/
 │   ├── enemies.txt
 │   ├── items.txt
 │   └── quests.txt
+├── unity/                 # Unity 리디자인 버전 (DungeonGate) — 위 절 참고
+├── art-assets/            # unity/ 버전의 아트 원본(정본)
+├── docs/                  # 요구사항·설계·결정 로그(DEC-*) — unity 버전 근거
 ├── PRD.md
 └── system_design.md
 ```

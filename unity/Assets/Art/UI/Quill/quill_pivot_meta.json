@@ -1,0 +1,103 @@
+{
+  "_sources": {
+    "quill_base.png": {
+      "derived_from": "Game-icons.net \"Quill\" icon by Lorc",
+      "license": "CC BY 3.0",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "source_url": "https://game-icons.net/1x1/lorc/quill.html",
+      "modification": "downloaded transparent-background PNG (512x512), upscaled 2x to 1024x1024, recolored from flat black to a feather/shaft gradient tint (was flat black silhouette). Shape/silhouette unmodified."
+    },
+    "quill_shadow.png": {
+      "derived_from": "same Game-icons.net \"Quill\" icon by Lorc (see quill_base.png entry)",
+      "license": "CC BY 3.0",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "source_url": "https://game-icons.net/1x1/lorc/quill.html",
+      "modification": "silhouette flattened to black, blurred, vertically squashed, alpha reduced to simulate a soft cast shadow."
+    },
+    "parchment_clean.png": {
+      "derived_from": "OpenGameArt \"Old Parchment Paper\" by cron (parchment_alpha.png)",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_url": "https://opengameart.org/content/old-parchment-paper",
+      "modification": "cropped to the opaque interior (torn edge discarded), upscaled to 1920x1080, added synthetic grain + edge-biased aging blotches + vignette."
+    },
+    "nib_contact.png / ink_brush_*.png / ink_bleed_mask.png / writing_final_mask.png": {
+      "derived_from": "none - procedurally generated with PIL/numpy for this task",
+      "license": "n/a (original)"
+    }
+  },
+  "_writing_final_mask_text_status": {
+    "file": "writing_final_mask.png",
+    "text": "던전게이트",
+    "text_status": "CONFIRMED - 2026-09-13 사용자 확정",
+    "note": "이 텍스트(\"던전게이트\")는 2026-09-13 사용자가 최종 확정한 카피다. 더 이상 임시 대체 문구가 아니다. (동일 갱신이 writing_path.json의 _meta.text_status에도 반영되어 있음 - 어느 메타파일을 보더라도 놓치지 않도록 중복 기록)"
+  },
+  "_pivots": {
+    "quill_base.png": {
+      "canvas": [
+        1024,
+        1024
+      ],
+      "nib_contact_px": [
+        191.0,
+        1006.0
+      ],
+      "note": "pivot for rotation should be this nib contact point, not canvas center"
+    },
+    "quill_shadow.png": {
+      "canvas": [
+        1024,
+        1024
+      ],
+      "nib_contact_px": [
+        191.0,
+        1006.0
+      ],
+      "note": "same canvas alignment as quill_base.png; vertical squash anchored at this point; runtime should apply additional dynamic offset by pen height"
+    },
+    "nib_contact.png": {
+      "canvas": [
+        128,
+        128
+      ],
+      "contact_px": [
+        64.0,
+        64.0
+      ],
+      "note": "stamp center is the contact point; align to nib_contact_px of quill_base.png at runtime"
+    },
+    "ink_brush_thin.png": {
+      "canvas": [
+        256,
+        256
+      ],
+      "contact_px": [
+        128.0,
+        128.0
+      ],
+      "note": "stamp center follows the pen path point"
+    },
+    "ink_brush_medium.png": {
+      "canvas": [
+        256,
+        256
+      ],
+      "contact_px": [
+        128.0,
+        128.0
+      ],
+      "note": "stamp center follows the pen path point"
+    },
+    "ink_brush_dry.png": {
+      "canvas": [
+        256,
+        256
+      ],
+      "contact_px": [
+        128.0,
+        128.0
+      ],
+      "note": "stamp center follows the pen path point"
+    }
+  }
+}

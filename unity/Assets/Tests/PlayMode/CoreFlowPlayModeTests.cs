@@ -1394,5 +1394,52 @@ namespace TextRPG.Tests.PlayMode
                 RestoreSaveFile(hadExisting, backup);
             }
         }
+
+        // ----------------------------------------------------------------
+        // 테스트 U: 타이틀 화면 레이어드 깃펜 페이지 라이팅(QuillPageWriter, DEC-145 자산 실연결).
+        // 타이틀 패널이 활성화되면(GameBootstrap.Start → ShowTitle) OnEnable로 자동 재생되어
+        // (1) 잉크 도장이 실제로 누적되고 (2) 재생이 끝나면 확정된 "던전게이트" 최종 마스크가
+        // 완전히 드러나는지(알파 1) 검증한다. Time.timeScale을 올려 원본 타이밍(수 초)을
+        // 그대로 기다리지 않고 짧게 검증한다.
+        // ----------------------------------------------------------------
+        [UnityTest]
+        public IEnumerator U_TitlePanel_QuillPageWriter_AccumulatesInkAndRevealsFinalMask()
+        {
+            Application.logMessageReceived += ConsumeKnownEditorNoiseIfMatched;
+            float originalTimeScale = Time.timeScale;
+            try
+            {
+                Time.timeScale = 4f;
+                yield return LoadMainScene();
+
+                var titleController = FindController<TitlePanelController>();
+                var writer = titleController.GetComponentInChildren<QuillPageWriter>(true);
+                Assert.IsNotNull(writer, "TitlePanel에 QuillPageWriter가 연결되어 있어야 합니다(DEC-145).");
+
+                var inkLayer = writer.transform.Find("InkLayer");
+                Assert.IsNotNull(inkLayer, "InkLayer 오브젝트를 찾을 수 없습니다.");
+                var finalMaskImage = writer.transform.Find("FinalMask").GetComponent<Image>();
+                Assert.IsNotNull(finalMaskImage, "FinalMask 오브젝트를 찾을 수 없습니다.");
+
+                yield return new WaitForSeconds(0.6f);
+                Assert.Greater(inkLayer.childCount, 0, "재생 중이면 잉크 도장이 하나 이상 누적되어 있어야 합니다.");
+                Assert.Less(finalMaskImage.color.a, 1f, "재생 중간에는 아직 최종 마스크가 완전히 드러나면 안 됩니다.");
+
+                // QuillPageWriter의 내부 elapsed는 (WaitForSeconds가 기다리는 것과 동일한 스케일된
+                // "게임 시간")에 playbackSpeed(1.8)를 곱해 진행된다 — Time.timeScale은 이 테스트가
+                // 실제로 걸리는 wall-clock 시간만 줄여줄 뿐, WaitForSeconds에 넘기는 게임 시간
+                // 자체의 필요량은 줄여주지 않는다. writing_path.json 총 길이(9.3844s) ÷
+                // playbackSpeed(1.8) ≈ 5.21s가 완주에 필요한 게임 시간이므로, 첫 대기(0.6s)를
+                // 더해도 5.21s 이상이 되도록 충분히 기다려야 한다(여유분 포함 총 5.6s).
+                yield return new WaitForSeconds(5.0f);
+                Assert.AreEqual(1f, finalMaskImage.color.a, 0.01f,
+                    "재생이 끝나면 확정된 최종 마스크(\"던전게이트\")가 완전히 드러나야 합니다.");
+            }
+            finally
+            {
+                Time.timeScale = originalTimeScale;
+                Application.logMessageReceived -= ConsumeKnownEditorNoiseIfMatched;
+            }
+        }
     }
 }
